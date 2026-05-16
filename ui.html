@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contract FSM Console</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+  <style>
+    :root {
+      --ink: #17201b;
+      --muted: #65716b;
+      --line: #d9e2dc;
+      --paper: #f8faf6;
+      --panel: #ffffff;
+      --green: #157f5b;
+      --green-bg: #e8f5ef;
+      --blue: #246b9f;
+      --blue-bg: #eef6fb;
+      --amber: #a86308;
+      --amber-bg: #fef6e8;
+      --red: #b83b3b;
+      --red-bg: #fceaea;
+      --violet: #7257a8;
+      --canvas: #0f1114;
+      --canvas-card: #18181b;
+      --canvas-line: #27272a;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+      line-height: 1.45;
+    }
+    .mono {
+      font-family: 'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+    }
+
+    /* Header */
+    .hdr {
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+      padding: 16px clamp(16px, 3vw, 32px);
+      display: flex; justify-content: space-between; align-items: center; gap: 16px;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .hdr h1 { font-size: clamp(18px, 2vw, 26px); font-weight: 780; letter-spacing: -0.01em; }
+    .hdr-pills { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+    .pill {
+      border: 1px solid var(--line); background: #f5f8f4; border-radius: 999px;
+      padding: 4px 10px; font-size: 12px; color: var(--muted); white-space: nowrap;
+    }
+
+    /* Main layout */
+    .main {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 18px;
+      padding: 20px clamp(16px, 3vw, 32px) 40px;
+      align-items: start;
+    }
+    .sidebar { display: flex; flex-direction: column; gap: 16px; }
+    .content { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+    /* Sections */
+    .card {
+      background: var(--panel); border: 1px solid var(--line);
+      border-radius: 10px; padding: 16px;
+    }
+    .card h2 {
+      font-size: 13px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--muted); margin-bottom: 12px;
+    }
+
+    /* Drop zone */
+    .dropzone {
+      border: 2px dashed var(--line); border-radius: 8px;
+      padding: 28px 16px; text-align: center; cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .dropzone:hover, .dropzone.over {
+      border-color: var(--green); background: var(--green-bg);
+    }
+    .dropzone p { color: var(--muted); font-size: 14px; margin-bottom: 8px; }
+    .dropzone small { color: var(--muted); font-size: 11px; opacity: 0.7; }
+    .dropzone input { display: none; }
+
+    /* Contract list */
+    .clist { display: flex; flex-direction: column; gap: 4px; }
+    .citem {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 12px; border-radius: 6px; cursor: pointer;
+      border: 1px solid transparent; font-size: 13px;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .citem:hover { background: #f0f4f0; }
+    .citem.active { background: var(--green-bg); border-color: var(--green); }
+    .citem .cname { font-weight: 600; }
+    .citem .cmeta { font-size: 11px; color: var(--muted); }
+
+    /* Buttons */
+    .btn {
+      border: 1px solid var(--line); background: #fff; color: var(--ink);
+      border-radius: 7px; padding: 8px 14px; font-weight: 650;
+      cursor: pointer; font-size: 13px; transition: background 0.1s;
+    }
+    .btn:hover { background: #f5f8f4; }
+    .btn:disabled { opacity: 0.5; cursor: wait; }
+    .btn-green {
+      background: var(--green); border-color: var(--green);
+      color: #fff;
+    }
+    .btn-green:hover { background: #126e4e; }
+
+    /* Q&A */
+    .qa-input {
+      width: 100%; min-height: 72px; resize: vertical;
+      border: 1px solid var(--line); background: #fff; color: var(--ink);
+      border-radius: 7px; padding: 10px 12px; font: inherit; font-size: 13px;
+      outline-color: var(--green);
+    }
+    .qa-row { display: flex; gap: 8px; margin-top: 8px; }
+    .qa-answer {
+      margin-top: 12px; padding: 12px; background: var(--blue-bg);
+      border-radius: 7px; font-size: 13px; line-height: 1.55; color: #1a3a52;
+      white-space: pre-wrap;
+    }
+    .qa-gbrain {
+      margin-top: 8px; padding: 10px; background: #f3f1f8;
+      border-radius: 7px; font-size: 11px; color: #4a3d6a;
+      white-space: pre-wrap; max-height: 200px; overflow: auto;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex; gap: 0; border-bottom: 1px solid var(--line);
+      margin: -16px -16px 14px; padding: 0 16px;
+    }
+    .tab {
+      padding: 10px 16px; font-size: 12px; font-weight: 650; cursor: pointer;
+      background: none; border: none; color: var(--muted);
+      border-bottom: 2px solid transparent; transition: color 0.12s;
+    }
+    .tab:hover { color: var(--ink); }
+    .tab.active { color: var(--ink); border-bottom-color: var(--green); }
+
+    /* Canvas (dark FSM diagram area) */
+    .canvas {
+      background: var(--canvas); border-radius: 8px;
+      border: 1px solid var(--canvas-line); overflow: hidden;
+    }
+
+    /* Rule cards */
+    .rule-card {
+      padding: 10px 14px; background: #f9fbf8; border-radius: 6px;
+      border: 1px solid var(--line); margin-bottom: 8px;
+    }
+    .rule-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+    .rule-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.02em;
+    }
+    .rule-action { font-size: 13px; font-weight: 600; }
+    .rule-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .rule-formula { font-size: 11px; color: var(--amber); margin-top: 4px; }
+
+    /* English */
+    .english-pre {
+      background: #f5f8f4; border: 1px solid var(--line); border-radius: 8px;
+      padding: 16px; white-space: pre-wrap; font-size: 11.5px;
+      line-height: 1.55; max-height: 600px; overflow: auto;
+    }
+
+    /* Upload results */
+    .upload-result {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 0; font-size: 12px; border-bottom: 1px solid var(--line);
+    }
+    .upload-result:last-child { border-bottom: none; }
+    .upload-ok { color: var(--green); font-weight: 700; }
+    .upload-err { color: var(--red); font-weight: 700; }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center; padding: 60px 24px; color: var(--muted);
+    }
+    .empty-state h3 { font-size: 18px; color: var(--ink); margin-bottom: 8px; }
+    .empty-state p { font-size: 14px; max-width: 420px; margin: 0 auto; }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid var(--line); border-top-color: var(--green);
+      border-radius: 50%; animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Responsive */
+    @media (max-width: 860px) {
+      .main { grid-template-columns: 1fr; }
+      .hdr { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+const mono = "'IBM Plex Mono','JetBrains Mono','Fira Code',ui-monospace,monospace";
+
+
+/* ═══════════════════════════════════════════
+   AUTO LAYOUT — BFS-layered graph positioning
+   ═══════════════════════════════════════════ */
+
+function autoLayout(states, transitions, initial) {
+  const ids = states.map(s => s.id), n = ids.length;
+  if (!n) return { pos: {}, w: 400, h: 300 };
+
+  const adj = {};
+  ids.forEach(id => (adj[id] = new Set()));
+  transitions.forEach(t => {
+    const fs = t.from_states || t.from || [t.from_state];
+    (Array.isArray(fs) ? fs : [fs]).forEach(f => {
+      if (adj[f]) adj[f].add(t.to_state || t.to);
+    });
+  });
+
+  const depth = {};
+  const queue = [initial];
+  depth[initial] = 0;
+  while (queue.length) {
+    const c = queue.shift();
+    for (const nb of adj[c] || []) {
+      if (depth[nb] === undefined) { depth[nb] = depth[c] + 1; queue.push(nb); }
+    }
+  }
+  const maxD = Math.max(0, ...Object.values(depth));
+  ids.forEach(id => { if (depth[id] === undefined) depth[id] = maxD + 1; });
+
+  const layers = {};
+  ids.forEach(id => (layers[depth[id]] = layers[depth[id]] || []).push(id));
+
+  const nL = Object.keys(layers).length;
+  const nodeW = 180, nodeH = 56, gapX = 100, gapY = 50, padX = 100, padY = 60;
+  const maxPerLayer = Math.max(...Object.values(layers).map(l => l.length));
+  const totalW = padX * 2 + nL * nodeW + (nL - 1) * gapX;
+  const totalH = padY * 2 + maxPerLayer * nodeH + (maxPerLayer - 1) * gapY;
+
+  const pos = {};
+  Object.entries(layers).forEach(([d, grp]) => {
+    const di = parseInt(d);
+    const x = padX + nodeW / 2 + di * (nodeW + gapX);
+    const colH = grp.length * nodeH + (grp.length - 1) * gapY;
+    const startY = (totalH - colH) / 2;
+    grp.forEach((id, i) => {
+      pos[id] = { x, y: startY + nodeH / 2 + i * (nodeH + gapY) };
+    });
+  });
+
+  return { pos, w: Math.max(totalW, 600), h: Math.max(totalH, 300) };
+}
+
+
+/* ═══════════════════════════════════════════
+   CLIENT-SIDE DECOMPILER
+   ═══════════════════════════════════════════ */
+
+function decompileFSM(fsm) {
+  if (!fsm) return "";
+  const L = [];
+  const cid = fsm.contract_id || "?";
+  const parties = (fsm.parties || []).slice().sort();
+  const states = (fsm.states || []).slice().sort((a, b) => a.id.localeCompare(b.id));
+  const transitions = (fsm.transitions || []).slice().sort((a, b) => a.id.localeCompare(b.id));
+  const rules = (fsm.rules || []).slice().sort((a, b) => a.id.localeCompare(b.id));
+  const params = fsm.params || {};
+  const initial = fsm.initial_state;
+  const unmappable = (fsm.unmappable_rules || []).slice().sort((a, b) => (a.id || "").localeCompare(b.id || ""));
+
+  L.push("=".repeat(60), `CONTRACT: ${cid}`, "=".repeat(60), "");
+  L.push("PARTIES", "─".repeat(40));
+  parties.forEach((p, i) => L.push(`  ${i + 1}. ${p}`));
+  L.push("");
+
+  const am = params.amounts || {}, ra = params.rates || {}, du = params.durations || {};
+  if (Object.keys(am).length || Object.keys(ra).length || Object.keys(du).length) {
+    L.push("CONTRACT PARAMETERS", "─".repeat(40));
+    Object.entries(am).sort().forEach(([k, v]) => L.push(`  ${k.replace(/_/g, " ")}: $${parseFloat(v).toLocaleString()}`));
+    Object.entries(ra).sort().forEach(([k, v]) => { const r = parseFloat(v); L.push(`  ${k.replace(/_/g, " ")}: ${r < 1 ? (r * 100).toFixed(2) + "%" : v}`); });
+    Object.entries(du).sort().forEach(([k, v]) => L.push(`  ${k.replace(/_/g, " ")}: ${v} days`));
+    L.push("");
+  }
+
+  L.push("CONTRACT STATES", "─".repeat(40));
+  states.forEach(s => {
+    let m = ""; if (s.id === initial) m = " <- initial"; if (s.terminal) m = " <- terminal";
+    L.push(`  ${s.description}${m}`);
+  });
+  L.push("");
+
+  const mappable = rules.filter(r => r.mappable !== false);
+  if (mappable.length) {
+    L.push("RULES", "─".repeat(40));
+    mappable.forEach(r => {
+      L.push(`  ${r.id} [${r.type}] ${r.party} -> ${r.counterparty}`);
+      L.push(`    ${r.action}`);
+      if (r.description) L.push(`    ${r.description}`);
+      (r.triggers || []).forEach(t => L.push(`    Trigger [${t.type}]: ${t.condition}`));
+      (r.effects || []).forEach(e => {
+        L.push(`    Effect [${e.type}]: ${e.description}`);
+        if (e.payment_formula) L.push(`      Formula: ${e.payment_formula}`);
+        if (e.cap) L.push(`      Cap: $${e.cap}`);
+      });
+      L.push("");
+    });
+  }
+
+  L.push("STATE TRANSITIONS", "─".repeat(40));
+  const byS = {};
+  transitions.forEach(t => {
+    const fs = t.from_states || t.from || [t.from_state];
+    (Array.isArray(fs) ? fs : [fs]).forEach(f => (byS[f] = byS[f] || []).push(t));
+  });
+  states.forEach(s => {
+    const ts = byS[s.id]; if (!ts) return;
+    L.push(`  When in "${s.description}":`);
+    ts.sort((a, b) => a.id.localeCompare(b.id)).forEach(t => {
+      const ev = (t.event_type || "").replace(/_/g, " ");
+      const tgt = states.find(st => st.id === (t.to_state || t.to));
+      L.push(`    On "${ev}":`);
+      if (t.guard) L.push(`      Guard: ${t.guard}`);
+      if (t.description) L.push(`      ${t.description}`);
+      const same = (t.from_states || t.from || []).every(f => f === (t.to_state || t.to));
+      L.push(`      -> ${same ? "remains" : `"${tgt?.description || t.to_state || t.to}"`}`);
+    });
+    L.push("");
+  });
+
+  if (unmappable.length) {
+    L.push("UNMODELED RULES", "─".repeat(40));
+    unmappable.forEach(r => {
+      L.push(`  ${r.id} [${r.type}] ${r.description || r.action || ""}`);
+      if (r.unmappable_reason) L.push(`    Reason: ${r.unmappable_reason}`);
+    });
+    L.push("");
+  }
+  L.push("=".repeat(60), "END OF CONTRACT", "=".repeat(60));
+  return L.join("\n");
+}
+
+
+/* ═══════════════════════════════════════════
+   HELPERS
+   ═══════════════════════════════════════════ */
+
+function truncate(s, n) { return s && s.length > n ? s.slice(0, n - 1) + "…" : s; }
+
+function evColor(ev) {
+  const map = { purchase: "#60a5fa", cash_advance: "#c084fc", payment_received: "#34d399", payment_deadline_passed: "#f87171", terminated: "#9ca3af" };
+  return map[ev] || `hsl(${[...(ev || "x")].reduce((a, c) => a + c.charCodeAt(0), 0) % 360}, 55%, 60%)`;
+}
+
+const RC = {
+  OBLIGATION: { bg: "#dbeafe", fg: "#1e40af", border: "#93c5fd" },
+  PROHIBITION: { bg: "#fee2e2", fg: "#991b1b", border: "#fca5a5" },
+  PERMISSION: { bg: "#dcfce7", fg: "#166534", border: "#86efac" },
+  POWER: { bg: "#ffedd5", fg: "#9a3412", border: "#fdba74" },
+  IMMUNITY: { bg: "#f3e8ff", fg: "#6b21a8", border: "#d8b4fe" },
+  REPRESENTATION: { bg: "#fef9c3", fg: "#854d0e", border: "#fde047" },
+  WARRANTY: { bg: "#ede9fe", fg: "#5b21b6", border: "#c4b5fd" },
+  COVENANT: { bg: "#f1f5f9", fg: "#475569", border: "#cbd5e1" },
+};
+
+function cleanId(cid) {
+  return (cid || "").replace(/^C_/, "").replace(/_contract$/i, "").replace(/_/g, " ");
+}
+
+
+/* ═══════════════════════════════════════════
+   SVG DIAGRAM (adapted from visualizer.html)
+   ═══════════════════════════════════════════ */
+
+function Diagram({ fsm, layout }) {
+  const { pos, w, h } = layout;
+  const states = fsm.states || [];
+  const transitions = fsm.transitions || [];
+  const initial = fsm.initial_state;
+  const NW = 170, NH = 48;
+  const [tip, setTip] = useState(null);
+  const svgRef = useRef(null);
+
+  const edges = {};
+  transitions.forEach(t => {
+    const froms = t.from_states || t.from || [t.from_state];
+    const to = t.to_state || t.to;
+    (Array.isArray(froms) ? froms : [froms]).forEach(f => {
+      const k = `${f}→${to}`;
+      (edges[k] = edges[k] || []).push(t);
+    });
+  });
+
+  const handleEnter = (e, s) => {
+    const el = svgRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setTip({
+      x: e.clientX - rect.left + el.scrollLeft,
+      y: e.clientY - rect.top + el.scrollTop - 12,
+      state: s,
+    });
+  };
+
+  return (
+    <div ref={svgRef} style={{ overflowX: "auto", overflowY: "auto", maxHeight: 480, position: "relative", padding: 8 }}>
+      {tip && (
+        <div style={{
+          position: "absolute", left: tip.x, top: tip.y, transform: "translate(-50%, -100%)",
+          background: "#27272a", border: "1px solid #3f3f46", borderRadius: 6,
+          padding: "8px 12px", maxWidth: 320, zIndex: 10, pointerEvents: "none",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.5)", color: "#fafafa",
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 3 }}>{tip.state.description}</div>
+          <div style={{ fontSize: 9, fontFamily: mono, color: "#71717a" }}>
+            {tip.state.id}{tip.state.terminal ? " · terminal" : ""}{tip.state.id === initial ? " · initial" : ""}
+          </div>
+          {(tip.state.active_rule_ids || []).length > 0 && (
+            <div style={{ fontSize: 9, fontFamily: mono, color: "#a1a1aa", marginTop: 4 }}>
+              Rules: {tip.state.active_rule_ids.join(", ")}
+            </div>
+          )}
+        </div>
+      )}
+      <svg viewBox={`0 0 ${w} ${h}`} width={Math.max(w, 500)} height={Math.max(h, 260)} style={{ display: "block", minWidth: "100%" }}>
+        <defs>
+          <marker id="ar" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="6" markerHeight="4" orient="auto">
+            <path d="M0 0L10 3.5L0 7z" fill="#52525b" />
+          </marker>
+          <filter id="gl"><feGaussianBlur stdDeviation="3" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+        </defs>
+
+        {/* Edges */}
+        {Object.entries(edges).map(([k, ts]) => {
+          const [fk, tk] = k.split("→");
+          const fp = pos[fk], tp = pos[tk];
+          if (!fp || !tp) return null;
+
+          if (fk === tk) {
+            return <path key={k} d={`M${fp.x - 20} ${fp.y - NH / 2}C${fp.x - 55} ${fp.y - NH - 30},${fp.x + 55} ${fp.y - NH - 30},${fp.x + 20} ${fp.y - NH / 2}`}
+              fill="none" stroke="#52525b" strokeWidth={0.8} markerEnd="url(#ar)" />;
+          }
+          const dx = tp.x - fp.x, dy = tp.y - fp.y, ln = Math.sqrt(dx * dx + dy * dy) || 1;
+          const nx = dx / ln, ny = dy / ln;
+          const x1 = fp.x + nx * (NW / 2 + 4), y1 = fp.y + ny * (NH / 2 + 2);
+          const x2 = tp.x - nx * (NW / 2 + 4), y2 = tp.y - ny * (NH / 2 + 2);
+          const mx = (x1 + x2) / 2 - ny * 18, my = (y1 + y2) / 2 + nx * 18;
+
+          const label = ts.length === 1 ? ts[0].event_type?.replace(/_/g, " ") : `${ts.length} events`;
+          const lx = (x1 + mx) / 2, ly = (y1 + my) / 2;
+
+          return <g key={k}>
+            <path d={`M${x1} ${y1}Q${mx} ${my} ${x2} ${y2}`} fill="none" stroke="#52525b" strokeWidth={0.8} markerEnd="url(#ar)" />
+            {label && <text x={lx} y={ly - 6} textAnchor="middle" fill="#71717a" fontSize="7" fontFamily={mono}>{truncate(label, 22)}</text>}
+          </g>;
+        })}
+
+        {/* Nodes */}
+        {states.map(s => {
+          const p = pos[s.id];
+          if (!p) return null;
+          let fi = "#18181b", st = "#3f3f46", tx = "#a1a1aa";
+          if (s.id === initial) { st = "#60a5fa"; tx = "#93c5fd"; fi = "#0c1929"; }
+          if (s.terminal) { st = "#ef4444"; tx = "#fca5a5"; fi = "#1c0c0c"; }
+
+          return (
+            <g key={s.id}
+              onMouseEnter={(e) => handleEnter(e, s)}
+              onMouseMove={(e) => handleEnter(e, s)}
+              onMouseLeave={() => setTip(null)}
+              style={{ cursor: "pointer" }}>
+              <rect x={p.x - NW / 2} y={p.y - NH / 2} width={NW} height={NH} rx={6}
+                fill={fi} stroke={st} strokeWidth={1} />
+              {s.id === initial && <polygon points={`${p.x - NW / 2 - 14},${p.y} ${p.x - NW / 2 - 4},${p.y - 5} ${p.x - NW / 2 - 4},${p.y + 5}`} fill={st} />}
+              {s.terminal && <rect x={p.x - NW / 2 + 3} y={p.y - NH / 2 + 3} width={NW - 6} height={NH - 6} rx={4}
+                fill="none" stroke={st} strokeWidth={0.5} strokeDasharray="3 2" />}
+              <text x={p.x} y={p.y + 1} textAnchor="middle" dominantBaseline="middle"
+                fill={tx} fontSize="8.5" fontFamily={mono} fontWeight={500}>
+                {truncate(s.description || s.id, 30)}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+
+/* ═══════════════════════════════════════════
+   APP
+   ═══════════════════════════════════════════ */
+
+function App() {
+  const [contractList, setContractList] = useState([]);
+  const [fsms, setFsms] = useState({});
+  const [selected, setSelected] = useState(null);
+  const [tab, setTab] = useState("diagram");
+  const [uploading, setUploading] = useState(false);
+  const [uploadResults, setUploadResults] = useState([]);
+  const [question, setQuestion] = useState("");
+  const [qaResult, setQaResult] = useState(null);
+  const [qaLoading, setQaLoading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef(null);
+
+  // Load contract list
+  const loadContracts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/contracts");
+      const data = await res.json();
+      setContractList(data.contracts || []);
+      if (!selected && data.contracts?.length) {
+        setSelected(data.contracts[0].contract_id);
+      }
+    } catch (e) { console.error("Failed to load contracts:", e); }
+  }, []);
+
+  useEffect(() => { loadContracts(); }, [loadContracts]);
+
+  // Load FSM when selected changes
+  useEffect(() => {
+    if (!selected || fsms[selected]) return;
+    fetch(`/api/fsm/${selected}`)
+      .then(r => r.json())
+      .then(fsm => setFsms(prev => ({ ...prev, [selected]: fsm })))
+      .catch(e => console.error("Failed to load FSM:", e));
+  }, [selected]);
+
+  const fsm = fsms[selected];
+  const layout = useMemo(() =>
+    fsm ? autoLayout(fsm.states || [], fsm.transitions || [], fsm.initial_state) : null,
+    [fsm]
+  );
+  const english = useMemo(() => fsm ? decompileFSM(fsm) : "", [fsm]);
+
+  // Upload handler
+  async function handleFiles(files) {
+    if (!files?.length) return;
+    setUploading(true);
+    setUploadResults([]);
+    try {
+      const fileData = await Promise.all(
+        Array.from(files).map(async f => ({ name: f.name, content: await f.text() }))
+      );
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files: fileData }),
+      });
+      const data = await res.json();
+      setUploadResults(data.results || []);
+      await loadContracts();
+      const firstOk = (data.results || []).find(r => r.ok);
+      if (firstOk) {
+        setSelected(firstOk.contract_id);
+        setFsms({});
+      }
+    } catch (e) {
+      setUploadResults([{ name: "upload", error: e.message }]);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  // Q&A handler
+  async function handleAsk() {
+    if (!question.trim()) return;
+    setQaLoading(true);
+    setQaResult(null);
+    try {
+      const res = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+      setQaResult(await res.json());
+    } catch (e) {
+      setQaResult({ error: e.message });
+    } finally {
+      setQaLoading(false);
+    }
+  }
+
+  const nStates = fsm ? (fsm.states || []).length : 0;
+  const nTrans = fsm ? (fsm.transitions || []).length : 0;
+  const nRules = fsm ? (fsm.rules || []).filter(r => r.mappable !== false).length : 0;
+
+  const tabs = [
+    { id: "diagram", label: `Diagram (${nStates})` },
+    ...(nRules ? [{ id: "rules", label: `Rules (${nRules})` }] : []),
+    { id: "english", label: "English" },
+  ];
+
+  return (<>
+    {/* ── Header ── */}
+    <header className="hdr">
+      <h1>Contract FSM Console</h1>
+      <div className="hdr-pills">
+        {contractList.map(c =>
+          <span key={c.contract_id} className="pill" style={{ cursor: "pointer", borderColor: c.contract_id === selected ? "var(--green)" : undefined }}
+            onClick={() => setSelected(c.contract_id)}>
+            {cleanId(c.contract_id)}: {c.state_count}S / {c.transition_count}T
+          </span>
+        )}
+      </div>
+    </header>
+
+    {/* ── Main ── */}
+    <div className="main">
+
+      {/* ── Sidebar ── */}
+      <div className="sidebar">
+
+        {/* Upload */}
+        <div className="card">
+          <h2>Upload Contracts</h2>
+          <div
+            className={`dropzone${dragOver ? " over" : ""}`}
+            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={e => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
+            onClick={() => fileRef.current?.click()}
+          >
+            <p>{uploading ? "Processing contracts…" : "Drop .txt or .json files here"}</p>
+            <small>.txt files run through the full pipeline (requires API key). .json files load FSMs directly.</small>
+            <input ref={fileRef} type="file" accept=".txt,.md,.json" multiple
+              onChange={e => handleFiles(e.target.files)} />
+            {uploading && <div style={{ marginTop: 12 }}><span className="spinner"></span></div>}
+          </div>
+          {uploadResults.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              {uploadResults.map((r, i) => (
+                <div key={i} className="upload-result">
+                  {r.ok
+                    ? <><span className="upload-ok">OK</span> <span>{r.contract_id} &mdash; {r.state_count} states, {r.transition_count} transitions</span></>
+                    : <><span className="upload-err">ERR</span> <span>{r.name}: {r.error}</span></>
+                  }
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Contract list */}
+        <div className="card">
+          <h2>Loaded Contracts ({contractList.length})</h2>
+          {contractList.length === 0 ? (
+            <p style={{ fontSize: 13, color: "var(--muted)" }}>No contracts loaded yet. Upload files or pre-populate the output/ directory.</p>
+          ) : (
+            <div className="clist">
+              {contractList.map(c => (
+                <div key={c.contract_id}
+                  className={`citem${c.contract_id === selected ? " active" : ""}`}
+                  onClick={() => setSelected(c.contract_id)}>
+                  <span className="cname">{cleanId(c.contract_id)}</span>
+                  <span className="cmeta">{c.state_count}S &middot; {c.transition_count}T &middot; {c.rule_count}R</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Q&A */}
+        <div className="card">
+          <h2>Ask About FSMs</h2>
+          <textarea className="qa-input" value={question}
+            onChange={e => setQuestion(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleAsk(); }}
+            placeholder="Ask a question about the loaded contracts and their FSMs..." />
+          <div className="qa-row">
+            <button className="btn btn-green" onClick={handleAsk} disabled={qaLoading || !question.trim()}>
+              {qaLoading ? "Thinking…" : "Ask"}
+            </button>
+          </div>
+          {qaResult && (
+            <>
+              {qaResult.error
+                ? <div className="qa-answer" style={{ background: "var(--red-bg)", color: "#7f1d1d" }}>{qaResult.error}</div>
+                : <div className="qa-answer">{qaResult.answer}</div>
+              }
+              {qaResult.gbrain && (
+                <div className="qa-gbrain">
+                  <strong style={{ fontSize: 10 }}>GBrain {qaResult.gbrain.available ? "(connected)" : "(not available)"}</strong>
+                  <br />{qaResult.gbrain.output || "No output."}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ── Content ── */}
+      <div className="content">
+        {!selected || !fsm ? (
+          <div className="card">
+            <div className="empty-state">
+              <h3>{!selected ? "Select a Contract" : "Loading…"}</h3>
+              <p>{!selected
+                ? "Upload contract files or select a pre-loaded contract from the sidebar to view its finite state machine."
+                : "Fetching FSM data…"
+              }</p>
+              {!selected && !contractList.length && (
+                <p style={{ marginTop: 16, fontSize: 12, color: "var(--muted)" }}>
+                  Tip: Place FSM JSON files in output/&lt;contract_id&gt;/fsm.json and restart the server, or upload .txt/.json files above.
+                </p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Contract header */}
+            <div className="card" style={{ paddingBottom: 0 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 8 }}>
+                <h1 style={{ fontSize: 20, fontWeight: 750 }}>{fsm.contract_id}</h1>
+                <span style={{ fontSize: 12, color: "var(--muted)", fontFamily: mono }}>
+                  {nStates} states &middot; {nTrans} transitions &middot; {nRules} rules
+                </span>
+              </div>
+              {fsm.parties?.length > 0 && (
+                <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
+                  Parties: {fsm.parties.join(", ")}
+                </p>
+              )}
+              <div className="tabs">
+                {tabs.map(t =>
+                  <button key={t.id} className={`tab${tab === t.id ? " active" : ""}`}
+                    onClick={() => setTab(t.id)}>{t.label}</button>
+                )}
+              </div>
+            </div>
+
+            {/* Tab content */}
+            {tab === "diagram" && layout && (
+              <div className="canvas">
+                <Diagram fsm={fsm} layout={layout} />
+              </div>
+            )}
+
+            {tab === "diagram" && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                {/* States list */}
+                <div className="card">
+                  <h2>States</h2>
+                  {(fsm.states || []).map(s => (
+                    <div key={s.id} style={{
+                      padding: "8px 10px", borderRadius: 5, marginBottom: 4,
+                      background: s.id === fsm.initial_state ? "var(--blue-bg)" : s.terminal ? "var(--red-bg)" : "#f9fbf8",
+                      border: "1px solid var(--line)", fontSize: 12,
+                    }}>
+                      <div style={{ fontWeight: 650, fontFamily: mono, fontSize: 11 }}>
+                        {s.id}
+                        {s.id === fsm.initial_state && <span style={{ color: "var(--blue)", marginLeft: 6 }}>(initial)</span>}
+                        {s.terminal && <span style={{ color: "var(--red)", marginLeft: 6 }}>(terminal)</span>}
+                      </div>
+                      <div style={{ color: "var(--muted)", marginTop: 2 }}>{s.description}</div>
+                      {(s.active_rule_ids || []).length > 0 && (
+                        <div style={{ marginTop: 4, fontSize: 10, color: "var(--violet)", fontFamily: mono }}>
+                          Rules: {s.active_rule_ids.join(", ")}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Transitions list */}
+                <div className="card">
+                  <h2>Transitions</h2>
+                  {(fsm.transitions || []).map(t => (
+                    <div key={t.id} style={{
+                      padding: "8px 10px", borderRadius: 5, marginBottom: 4,
+                      background: "#f9fbf8", border: "1px solid var(--line)", fontSize: 12,
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                        <span style={{ fontWeight: 650, fontFamily: mono, fontSize: 10 }}>{t.id}</span>
+                        <span className="rule-badge" style={{
+                          background: evColor(t.event_type) + "22",
+                          color: evColor(t.event_type),
+                          border: `1px solid ${evColor(t.event_type)}44`,
+                        }}>{(t.event_type || "").replace(/_/g, " ")}</span>
+                      </div>
+                      <div style={{ color: "var(--muted)", fontFamily: mono, fontSize: 10 }}>
+                        {(t.from_states || []).join(", ")} &rarr; {t.to_state}
+                      </div>
+                      {t.guard && <div style={{ fontSize: 10, color: "var(--amber)", marginTop: 2, fontFamily: mono }}>Guard: {t.guard}</div>}
+                      {t.description && <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{t.description}</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {tab === "rules" && (
+              <div className="card">
+                {(fsm.rules || []).filter(r => r.mappable !== false).map(r => {
+                  const c = RC[r.type] || RC.COVENANT;
+                  return (
+                    <div key={r.id} className="rule-card" style={{ borderLeftColor: c.border, borderLeftWidth: 3 }}>
+                      <div className="rule-head">
+                        <span className="rule-badge" style={{ background: c.bg, color: c.fg }}>{r.id}</span>
+                        <span className="rule-badge" style={{ background: c.bg, color: c.fg }}>{r.type}</span>
+                        <span style={{ fontSize: 11, color: "var(--muted)" }}>{r.party} &rarr; {r.counterparty}</span>
+                      </div>
+                      <div className="rule-action">{r.action}</div>
+                      {r.description && <div className="rule-desc">{r.description}</div>}
+                      {(r.triggers || []).map((t, i) => (
+                        <div key={i} style={{ fontSize: 11, color: "var(--blue)", marginTop: 3 }}>
+                          Trigger [{t.type}]: {t.condition}
+                        </div>
+                      ))}
+                      {(r.effects || []).map((e, i) => (
+                        <div key={i}>
+                          <div style={{ fontSize: 11, color: "var(--violet)", marginTop: 3 }}>
+                            Effect [{e.type}]: {e.description}
+                          </div>
+                          {e.payment_formula && (
+                            <div className="rule-formula mono">Formula: {e.payment_formula}{e.cap ? ` (cap: $${e.cap})` : ""}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+                {(fsm.unmappable_rules || []).length > 0 && (
+                  <>
+                    <h2 style={{ marginTop: 16 }}>Unmappable Rules ({fsm.unmappable_rules.length})</h2>
+                    {fsm.unmappable_rules.map(r => (
+                      <div key={r.id} className="rule-card" style={{ borderLeftColor: "var(--amber)", borderLeftWidth: 3 }}>
+                        <div className="rule-head">
+                          <span className="rule-badge" style={{ background: "var(--amber-bg)", color: "var(--amber)" }}>{r.id} {r.type}</span>
+                        </div>
+                        <div className="rule-desc">{r.description || r.action}</div>
+                        {r.unmappable_reason && (
+                          <div style={{ fontSize: 11, color: "var(--amber)", marginTop: 3 }}>Reason: {r.unmappable_reason}</div>
+                        )}
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+
+            {tab === "english" && (
+              <div className="card">
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <span className="rule-badge" style={{ background: "var(--green-bg)", color: "var(--green)" }}>DETERMINISTIC</span>
+                  <span style={{ fontSize: 11, color: "var(--muted)", fontFamily: mono }}>Template-based &middot; No LLM &middot; Diff-safe</span>
+                </div>
+                <pre className="english-pre mono">{english}</pre>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  </>);
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
