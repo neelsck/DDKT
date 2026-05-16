@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import threading
+from collections import deque
 from datetime import date
 from decimal import Decimal
 from http import HTTPStatus
@@ -154,6 +156,138 @@ def _build_fsm_context(contracts: dict[str, dict]) -> str:
     return "\n\n---\n\n".join(parts)
 
 
+def _validate_fsm_structured(fsm: dict) -> dict:
+    """Run all 6 validation checks and return structured, per-check results."""
+    states = {s["id"]: s for s in fsm.get("states", [])}
+    transitions = fsm.get("transitions", [])
+    initial = fsm.get("initial_state")
+    all_rules = {r["id"]: r for r in fsm.get("rules", []) + fsm.get("unmappable_rules", [])}
+    terminal_ids = {sid for sid, s in states.items() if s.get("terminal")}
+    checks = []
+
+    # 1. Reachability
+    reachable: set[str] = set()
+    q: deque[str] = deque([initial])
+    reachable.add(initial)
+    depth_map = {initial: 0}
+    while q:
+        cur = q.popleft()
+        for tr in transitions:
+            if cur in tr.get("from_states", []):
+                to = tr.get("to_state")
+                if to and to not in reachable:
+                    reachable.add(to)
+                    depth_map[to] = depth_map.get(cur, 0) + 1
+                    q.append(to)
+    reach_details = sorted(
+        [{"state_id": sid, "reachable": sid in reachable, "depth": depth_map.get(sid, -1)}
+         for sid in states],
+        key=lambda d: (d["depth"] if d["depth"] >= 0 else 999, d["state_id"]),
+    )
+    checks.append({
+        "name": "reachability", "title": "State Reachability",
+        "description": "Every state must be reachable from the initial state via transitions",
+        "passed": all(d["reachable"] for d in reach_details),
+        "details": reach_details,
+    })
+
+    # 2. Dead ends
+    has_outbound = {}
+    for sid in states:
+        if sid in terminal_ids:
+            has_outbound[sid] = True
+        else:
+            has_outbound[sid] = any(sid in tr.get("from_states", []) for tr in transitions)
+    dead_details = [{"state_id": sid, "has_outbound": v, "terminal": sid in terminal_ids}
+                    for sid, v in has_outbound.items()]
+    checks.append({
+        "name": "dead_ends", "title": "Dead-End Detection",
+        "description": "Non-terminal states must have at least one outbound transition",
+        "passed": all(d["has_outbound"] for d in dead_details),
+        "details": dead_details,
+    })
+
+    # 3. Terminal reachability
+    term_details = [{"state_id": sid, "reachable": sid in reachable} for sid in terminal_ids]
+    checks.append({
+        "name": "terminal_reachability", "title": "Terminal State Reachability",
+        "description": "At least one terminal state must be reachable so the contract can complete",
+        "passed": bool(terminal_ids & reachable),
+        "details": term_details,
+    })
+
+    # 4. Rule references
+    ref_details = []
+    for s in fsm.get("states", []):
+        for rid in s.get("active_rule_ids", []):
+            ref_details.append({"state_id": s["id"], "rule_id": rid, "exists": rid in all_rules})
+    for tr in transitions:
+        for eff in tr.get("effects", []):
+            trid = eff.get("target_rule_id") if isinstance(eff, dict) else None
+            if trid:
+                ref_details.append({"transition_id": tr["id"], "rule_id": trid, "exists": trid in all_rules})
+    checks.append({
+        "name": "rule_references", "title": "Rule Reference Integrity",
+        "description": "All rule IDs cited in states and transitions must exist in the rule set",
+        "passed": all(d["exists"] for d in ref_details),
+        "details": ref_details,
+    })
+
+    # 5. Formula syntax
+    formula_details = []
+    for tr in transitions:
+        for eff in tr.get("effects", []):
+            if not isinstance(eff, dict):
+                continue
+            formula = eff.get("payment_formula")
+            if formula:
+                try:
+                    ast.parse(formula)
+                    valid = True
+                except SyntaxError:
+                    valid = False
+                formula_details.append({
+                    "transition_id": tr["id"], "effect_id": eff.get("id", ""),
+                    "formula": formula, "valid": valid,
+                })
+    checks.append({
+        "name": "formula_syntax", "title": "Payment Formula Syntax",
+        "description": "All payment formulas must be syntactically valid Python expressions",
+        "passed": all(d["valid"] for d in formula_details) if formula_details else True,
+        "details": formula_details,
+    })
+
+    # 6. Constraint values
+    cap_details = []
+    for r in fsm.get("rules", []) + fsm.get("unmappable_rules", []):
+        for c in r.get("constraints", []):
+            val = c.get("value")
+            if val is not None:
+                try:
+                    non_neg = float(val) >= 0
+                except (TypeError, ValueError):
+                    non_neg = False
+                cap_details.append({
+                    "rule_id": r["id"], "constraint_id": c.get("id", ""),
+                    "type": c.get("type", ""), "value": val, "non_negative": non_neg,
+                })
+    checks.append({
+        "name": "constraint_values", "title": "Constraint Value Validation",
+        "description": "Constraint caps and floors must be non-negative values",
+        "passed": all(d["non_negative"] for d in cap_details) if cap_details else True,
+        "details": cap_details,
+    })
+
+    total = len(checks)
+    passed = sum(1 for c in checks if c["passed"])
+    return {
+        "contract_id": fsm.get("contract_id"),
+        "overall": passed == total,
+        "checks": checks,
+        "summary": {"total_checks": total, "passed": passed, "failed": total - passed},
+    }
+
+
 def _ask_llm(question: str, contracts: dict[str, dict], gbrain_suggestions: str = "") -> str:
     """Step 2: Cross-reference GBrain suggestions against FSMs and return only feasible ones."""
     try:
@@ -259,6 +393,15 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self.send_error(HTTPStatus.NOT_FOUND, f"Contract {cid} not found")
             return
+        if path.startswith("/api/validate/"):
+            cid = path[len("/api/validate/"):]
+            with _lock:
+                fsm = _contracts.get(cid)
+            if fsm:
+                self._send_json(_validate_fsm_structured(fsm))
+            else:
+                self.send_error(HTTPStatus.NOT_FOUND, f"Contract {cid} not found")
+            return
         self.send_error(HTTPStatus.NOT_FOUND)
 
     # ── POST ───────────────────────────────────────────────────────────────────
@@ -269,6 +412,8 @@ class Handler(BaseHTTPRequestHandler):
             self._handle_upload()
         elif path == "/api/ask":
             self._handle_ask()
+        elif path == "/api/ask-stream":
+            self._handle_ask_stream()
         else:
             self.send_error(HTTPStatus.NOT_FOUND)
 
@@ -359,6 +504,97 @@ class Handler(BaseHTTPRequestHandler):
             })
         except Exception as exc:
             self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+
+    def _handle_ask_stream(self):
+        """SSE endpoint that streams the two-stage Q&A pipeline."""
+        length = int(self.headers.get("Content-Length", "0"))
+        raw = self.rfile.read(length) or b"{}"
+        payload = json.loads(raw)
+        question = str(payload.get("question", "")).strip()
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+
+        def sse(data):
+            self.wfile.write(f"data: {json.dumps(data, default=_json_default)}\n\n".encode())
+            self.wfile.flush()
+
+        try:
+            import anthropic
+            client = anthropic.Anthropic()
+
+            with _lock:
+                contracts = dict(_contracts)
+
+            fsm_context = _build_fsm_context(contracts)
+
+            # ── Stage 1: Hypothesis generation ──
+            sse({"type": "stage1_start"})
+            gbrain_text = ""
+
+            fsm_section = f"\n\nContract FSM context:\n{fsm_context}" if fsm_context else ""
+            with client.messages.stream(
+                model="claude-sonnet-4-6",
+                max_tokens=512,
+                system=(
+                    "You are a knowledgeable business and financial advisor with expertise in contracts. "
+                    "You will be given a question and the relevant contract FSM data (states, transitions, rules). "
+                    "Generate a numbered list of concrete, actionable suggestions informed by both "
+                    "the contract structure and broader business/financial knowledge. "
+                    "Your suggestions should be grounded in what the contract describes — "
+                    "use the parties, amounts, states, and obligations as context for what options exist. "
+                    "Do not filter for feasibility yet; a strict FSM validation step follows."
+                ),
+                messages=[{"role": "user", "content": f"Question: {question}{fsm_section}"}],
+            ) as stream:
+                for chunk in stream.text_stream:
+                    gbrain_text += chunk
+                    sse({"type": "gbrain_chunk", "text": chunk})
+
+            sse({"type": "stage1_complete", "full_text": gbrain_text})
+
+            # ── Stage 2: FSM cross-validation ──
+            sse({"type": "stage2_start"})
+
+            user_content = (
+                f"Contract FSMs:\n\n{fsm_context}\n\n"
+                f"---\n\n"
+                f"GBrain candidate suggestions for: \"{question}\"\n\n"
+                f"{gbrain_text}\n\n"
+                f"---\n\n"
+                f"For each suggestion above, determine whether it is feasible given the contract FSMs. "
+                f"A suggestion is feasible only if the required states, transitions, and rules exist "
+                f"to support it playing out within the contract terms. "
+                f"For feasible suggestions, cite the specific FSM states/transitions/rules that enable it. "
+                f"For infeasible suggestions, explain which FSM constraint blocks it. "
+                f"End with a clear recommendation of which option(s) to pursue and why."
+            )
+            system = (
+                "You are a strict contract analyst. Your job is to validate suggestions against "
+                "contract finite state machines. Never recommend an action that cannot be traced "
+                "through the FSM's states, transitions, and rules. Be precise: cite FSM IDs. "
+                "If no suggestions are feasible, say so plainly and explain why."
+            )
+
+            with client.messages.stream(
+                model="claude-sonnet-4-6",
+                max_tokens=1500,
+                system=system,
+                messages=[{"role": "user", "content": user_content}],
+            ) as stream:
+                for chunk in stream.text_stream:
+                    sse({"type": "validation_chunk", "text": chunk})
+
+            sse({"type": "stage2_complete"})
+            sse({"type": "done"})
+
+        except ImportError:
+            sse({"type": "error", "message": "Anthropic SDK not installed. Run: pip install anthropic"})
+        except Exception as exc:
+            sse({"type": "error", "message": str(exc)})
 
     def log_message(self, fmt, *args):
         print(f"{self.address_string()} - {fmt % args}")

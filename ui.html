@@ -16,6 +16,7 @@
       --panel: #ffffff;
       --green: #157f5b;
       --green-bg: #e8f5ef;
+      --green-glow: rgba(21,127,91,0.35);
       --blue: #246b9f;
       --blue-bg: #eef6fb;
       --amber: #a86308;
@@ -29,175 +30,247 @@
     }
     * { box-sizing: border-box; margin: 0; }
     body {
-      background: var(--paper);
-      color: var(--ink);
+      background: var(--paper); color: var(--ink);
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
       line-height: 1.45;
     }
     .mono {
-      font-family: 'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+      font-family: 'IBM Plex Mono','JetBrains Mono','Fira Code',ui-monospace,monospace;
     }
 
-    /* Header */
+    /* ── Header ── */
     .hdr {
-      border-bottom: 1px solid var(--line);
-      background: #fff;
-      padding: 16px clamp(16px, 3vw, 32px);
-      display: flex; justify-content: space-between; align-items: center; gap: 16px;
+      border-bottom: 1px solid var(--line); background: #fff;
+      padding: 14px clamp(16px,3vw,32px);
+      display: flex; justify-content: space-between; align-items: center; gap: 14px;
       position: sticky; top: 0; z-index: 10;
     }
-    .hdr h1 { font-size: clamp(18px, 2vw, 26px); font-weight: 780; letter-spacing: -0.01em; }
+    .hdr h1 { font-size: clamp(16px,2vw,24px); font-weight: 780; }
     .hdr-pills { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
     .pill {
       border: 1px solid var(--line); background: #f5f8f4; border-radius: 999px;
-      padding: 4px 10px; font-size: 12px; color: var(--muted); white-space: nowrap;
+      padding: 4px 10px; font-size: 11px; color: var(--muted); white-space: nowrap; cursor: pointer;
+      transition: border-color 0.15s;
     }
+    .pill.sel { border-color: var(--green); background: var(--green-bg); color: var(--green); font-weight: 600; }
 
-    /* Main layout */
+    /* ── Layout ── */
     .main {
-      display: grid;
-      grid-template-columns: 360px minmax(0, 1fr);
-      gap: 18px;
-      padding: 20px clamp(16px, 3vw, 32px) 40px;
-      align-items: start;
+      display: grid; grid-template-columns: 300px minmax(0,1fr);
+      gap: 16px; padding: 16px clamp(16px,3vw,32px) 40px; align-items: start;
     }
-    .sidebar { display: flex; flex-direction: column; gap: 16px; }
-    .content { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+    .sidebar { display: flex; flex-direction: column; gap: 14px; }
+    .content { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 
-    /* Sections */
+    /* ── Cards ── */
     .card {
       background: var(--panel); border: 1px solid var(--line);
-      border-radius: 10px; padding: 16px;
+      border-radius: 10px; padding: 14px;
     }
     .card h2 {
-      font-size: 13px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.04em; color: var(--muted); margin-bottom: 12px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--muted); margin-bottom: 10px;
     }
 
-    /* Drop zone */
+    /* ── Drop zone ── */
     .dropzone {
       border: 2px dashed var(--line); border-radius: 8px;
-      padding: 28px 16px; text-align: center; cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
+      padding: 22px 14px; text-align: center; cursor: pointer;
+      transition: all 0.15s;
     }
-    .dropzone:hover, .dropzone.over {
-      border-color: var(--green); background: var(--green-bg);
-    }
-    .dropzone p { color: var(--muted); font-size: 14px; margin-bottom: 8px; }
-    .dropzone small { color: var(--muted); font-size: 11px; opacity: 0.7; }
+    .dropzone:hover, .dropzone.over { border-color: var(--green); background: var(--green-bg); }
+    .dropzone p { color: var(--muted); font-size: 13px; margin-bottom: 4px; }
+    .dropzone small { color: var(--muted); font-size: 10px; opacity: .7; }
     .dropzone input { display: none; }
 
-    /* Contract list */
-    .clist { display: flex; flex-direction: column; gap: 4px; }
+    /* ── Contract list ── */
+    .clist { display: flex; flex-direction: column; gap: 3px; }
     .citem {
       display: flex; justify-content: space-between; align-items: center;
-      padding: 10px 12px; border-radius: 6px; cursor: pointer;
-      border: 1px solid transparent; font-size: 13px;
-      transition: background 0.12s, border-color 0.12s;
+      padding: 8px 10px; border-radius: 6px; cursor: pointer;
+      border: 1px solid transparent; font-size: 12px;
+      transition: all 0.12s;
     }
     .citem:hover { background: #f0f4f0; }
     .citem.active { background: var(--green-bg); border-color: var(--green); }
-    .citem .cname { font-weight: 600; }
-    .citem .cmeta { font-size: 11px; color: var(--muted); }
+    .citem .cn { font-weight: 600; }
+    .citem .cm { font-size: 10px; color: var(--muted); }
 
-    /* Buttons */
+    /* ── Buttons ── */
     .btn {
       border: 1px solid var(--line); background: #fff; color: var(--ink);
-      border-radius: 7px; padding: 8px 14px; font-weight: 650;
-      cursor: pointer; font-size: 13px; transition: background 0.1s;
+      border-radius: 7px; padding: 7px 13px; font-weight: 650;
+      cursor: pointer; font-size: 12px; transition: all 0.12s; white-space: nowrap;
     }
-    .btn:hover { background: #f5f8f4; }
-    .btn:disabled { opacity: 0.5; cursor: wait; }
-    .btn-green {
-      background: var(--green); border-color: var(--green);
-      color: #fff;
-    }
-    .btn-green:hover { background: #126e4e; }
+    .btn:hover { background: #f0f4f0; }
+    .btn:disabled { opacity: .5; cursor: wait; }
+    .btn-g { background: var(--green); border-color: var(--green); color: #fff; }
+    .btn-g:hover { background: #126e4e; }
+    .btn-sm { padding: 5px 10px; font-size: 11px; }
 
-    /* Q&A */
-    .qa-input {
-      width: 100%; min-height: 72px; resize: vertical;
-      border: 1px solid var(--line); background: #fff; color: var(--ink);
-      border-radius: 7px; padding: 10px 12px; font: inherit; font-size: 13px;
-      outline-color: var(--green);
-    }
-    .qa-row { display: flex; gap: 8px; margin-top: 8px; }
-    .qa-answer {
-      margin-top: 12px; padding: 12px; background: var(--blue-bg);
-      border-radius: 7px; font-size: 13px; line-height: 1.55; color: #1a3a52;
-      white-space: pre-wrap;
-    }
-    .qa-gbrain {
-      margin-top: 8px; padding: 10px; background: #f3f1f8;
-      border-radius: 7px; font-size: 11px; color: #4a3d6a;
-      white-space: pre-wrap; max-height: 200px; overflow: auto;
-    }
-
-    /* Tabs */
+    /* ── Tabs ── */
     .tabs {
       display: flex; gap: 0; border-bottom: 1px solid var(--line);
-      margin: -16px -16px 14px; padding: 0 16px;
+      margin: -14px -14px 12px; padding: 0 14px;
     }
     .tab {
-      padding: 10px 16px; font-size: 12px; font-weight: 650; cursor: pointer;
+      padding: 9px 14px; font-size: 11px; font-weight: 650; cursor: pointer;
       background: none; border: none; color: var(--muted);
       border-bottom: 2px solid transparent; transition: color 0.12s;
     }
     .tab:hover { color: var(--ink); }
     .tab.active { color: var(--ink); border-bottom-color: var(--green); }
 
-    /* Canvas (dark FSM diagram area) */
+    /* ── Canvas ── */
     .canvas {
       background: var(--canvas); border-radius: 8px;
-      border: 1px solid var(--canvas-line); overflow: hidden;
+      border: 1px solid var(--canvas-line); overflow: hidden; position: relative;
     }
 
-    /* Rule cards */
-    .rule-card {
-      padding: 10px 14px; background: #f9fbf8; border-radius: 6px;
-      border: 1px solid var(--line); margin-bottom: 8px;
+    /* ── Validation panel ── */
+    .val-panel {
+      background: #fafcf9; border: 1px solid var(--line);
+      border-radius: 10px; overflow: hidden;
     }
-    .rule-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
-    .rule-badge {
-      display: inline-block; padding: 2px 8px; border-radius: 4px;
-      font-size: 10px; font-weight: 700; letter-spacing: 0.02em;
+    .val-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 14px; border-bottom: 1px solid var(--line);
+      background: #fff;
     }
-    .rule-action { font-size: 13px; font-weight: 600; }
-    .rule-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
-    .rule-formula { font-size: 11px; color: var(--amber); margin-top: 4px; }
+    .val-header h2 { margin: 0; font-size: 13px; font-weight: 700; }
+    .val-checks { padding: 14px; }
+    .val-check {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 0; border-bottom: 1px solid #f0f2ef;
+      opacity: 0; transform: translateY(8px);
+      transition: opacity 0.35s, transform 0.35s;
+    }
+    .val-check.visible { opacity: 1; transform: translateY(0); }
+    .val-check:last-child { border-bottom: none; }
+    .val-icon {
+      width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 800; transition: all 0.3s;
+    }
+    .val-icon.pending { background: #f0f2ef; color: var(--muted); }
+    .val-icon.running { background: var(--amber-bg); color: var(--amber); animation: icon-pulse 0.8s infinite; }
+    .val-icon.pass { background: var(--green-bg); color: var(--green); }
+    .val-icon.fail { background: var(--red-bg); color: var(--red); }
+    .val-title { font-size: 12px; font-weight: 650; }
+    .val-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .val-details {
+      display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;
+    }
+    .val-node {
+      padding: 2px 7px; border-radius: 4px; font-size: 9px; font-weight: 600;
+      border: 1px solid transparent; transition: all 0.25s;
+    }
+    .val-node.checking { background: var(--amber-bg); color: var(--amber); border-color: var(--amber); animation: node-pulse 0.6s infinite; }
+    .val-node.pass { background: var(--green-bg); color: var(--green); border-color: #b4e4cf; }
+    .val-node.fail { background: var(--red-bg); color: var(--red); border-color: #f5bfbf; }
+    .val-node.neutral { background: #f0f2ef; color: var(--muted); }
+    .val-banner {
+      text-align: center; padding: 16px; font-size: 15px; font-weight: 800;
+      letter-spacing: 0.03em; opacity: 0; transform: scale(0.9);
+      transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .val-banner.show { opacity: 1; transform: scale(1); }
+    .val-banner.pass { background: var(--green-bg); color: var(--green); }
+    .val-banner.fail { background: var(--red-bg); color: var(--red); }
 
-    /* English */
-    .english-pre {
-      background: #f5f8f4; border: 1px solid var(--line); border-radius: 8px;
-      padding: 16px; white-space: pre-wrap; font-size: 11.5px;
-      line-height: 1.55; max-height: 600px; overflow: auto;
+    /* ── Streaming Q&A ── */
+    .qa-section { margin-top: 2px; }
+    .qa-input {
+      width: 100%; min-height: 60px; resize: vertical;
+      border: 1px solid var(--line); background: #fff; color: var(--ink);
+      border-radius: 7px; padding: 10px 12px; font: inherit; font-size: 13px;
+      outline-color: var(--green);
     }
+    .qa-row { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+    .qa-stage {
+      border: 1px solid var(--line); border-radius: 10px;
+      margin-top: 12px; overflow: hidden;
+      opacity: 0; transform: translateY(12px);
+      transition: opacity 0.4s, transform 0.4s;
+    }
+    .qa-stage.visible { opacity: 1; transform: translateY(0); }
+    .qa-stage-hdr {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 14px; font-size: 11px; font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .qa-stage-hdr.s1 { background: #f0e8ff; color: var(--violet); }
+    .qa-stage-hdr.s2 { background: var(--green-bg); color: var(--green); }
+    .qa-stage-body {
+      padding: 14px; font-size: 12.5px; line-height: 1.6;
+      white-space: pre-wrap; min-height: 48px; max-height: 400px;
+      overflow-y: auto; background: #fff;
+    }
+    .qa-cursor::after {
+      content: ""; display: inline-block; width: 7px; height: 14px;
+      background: var(--green); margin-left: 2px; vertical-align: middle;
+      animation: blink 0.7s step-end infinite;
+    }
+    .qa-status {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10px; font-weight: 600;
+    }
+    .qa-status .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+    }
+    .qa-status .dot.running { background: var(--amber); animation: icon-pulse 0.8s infinite; }
+    .qa-status .dot.done { background: var(--green); }
+    .qa-elapsed { font-size: 10px; color: var(--muted); margin-left: auto; }
 
-    /* Upload results */
-    .upload-result {
-      display: flex; align-items: center; gap: 8px;
-      padding: 6px 0; font-size: 12px; border-bottom: 1px solid var(--line);
-    }
-    .upload-result:last-child { border-bottom: none; }
+    /* ── Upload results ── */
+    .upload-r { display: flex; align-items: center; gap: 6px; padding: 4px 0; font-size: 11px; }
     .upload-ok { color: var(--green); font-weight: 700; }
     .upload-err { color: var(--red); font-weight: 700; }
 
-    /* Empty state */
-    .empty-state {
-      text-align: center; padding: 60px 24px; color: var(--muted);
+    /* ── Rule cards ── */
+    .rule-card {
+      padding: 10px 14px; background: #f9fbf8; border-radius: 6px;
+      border: 1px solid var(--line); margin-bottom: 6px; border-left-width: 3px;
     }
-    .empty-state h3 { font-size: 18px; color: var(--ink); margin-bottom: 8px; }
-    .empty-state p { font-size: 14px; max-width: 420px; margin: 0 auto; }
+    .rule-head { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; flex-wrap: wrap; }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.02em;
+    }
 
-    /* Spinner */
+    /* ── English ── */
+    .english-pre {
+      background: #f5f8f4; border: 1px solid var(--line); border-radius: 8px;
+      padding: 14px; white-space: pre-wrap; font-size: 11px;
+      line-height: 1.55; max-height: 500px; overflow: auto;
+    }
+
+    /* ── Empty state ── */
+    .empty { text-align: center; padding: 50px 20px; color: var(--muted); }
+    .empty h3 { font-size: 16px; color: var(--ink); margin-bottom: 6px; }
+
+    /* ── Animations ── */
+    @keyframes blink { 50% { opacity: 0; } }
+    @keyframes icon-pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+    @keyframes node-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .7; transform: scale(1.05); } }
+    @keyframes scan-sweep {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .scanning-overlay {
+      position: absolute; inset: 0; pointer-events: none; z-index: 2;
+      background: linear-gradient(90deg, transparent 30%, rgba(21,127,91,0.06) 50%, transparent 70%);
+      background-size: 200% 100%;
+      animation: scan-sweep 2s ease-in-out infinite;
+    }
+
     .spinner {
-      display: inline-block; width: 16px; height: 16px;
+      display: inline-block; width: 14px; height: 14px;
       border: 2px solid var(--line); border-top-color: var(--green);
       border-radius: 50%; animation: spin 0.6s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Responsive */
     @media (max-width: 860px) {
       .main { grid-template-columns: 1fr; }
       .hdr { flex-direction: column; align-items: flex-start; }
@@ -210,64 +283,48 @@
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 const mono = "'IBM Plex Mono','JetBrains Mono','Fira Code',ui-monospace,monospace";
 
-
 /* ═══════════════════════════════════════════
-   AUTO LAYOUT — BFS-layered graph positioning
+   AUTO LAYOUT
    ═══════════════════════════════════════════ */
-
 function autoLayout(states, transitions, initial) {
   const ids = states.map(s => s.id), n = ids.length;
   if (!n) return { pos: {}, w: 400, h: 300 };
-
   const adj = {};
   ids.forEach(id => (adj[id] = new Set()));
   transitions.forEach(t => {
     const fs = t.from_states || t.from || [t.from_state];
-    (Array.isArray(fs) ? fs : [fs]).forEach(f => {
-      if (adj[f]) adj[f].add(t.to_state || t.to);
-    });
+    (Array.isArray(fs) ? fs : [fs]).forEach(f => { if (adj[f]) adj[f].add(t.to_state || t.to); });
   });
-
-  const depth = {};
-  const queue = [initial];
+  const depth = {}, queue = [initial];
   depth[initial] = 0;
   while (queue.length) {
     const c = queue.shift();
-    for (const nb of adj[c] || []) {
+    for (const nb of adj[c] || [])
       if (depth[nb] === undefined) { depth[nb] = depth[c] + 1; queue.push(nb); }
-    }
   }
   const maxD = Math.max(0, ...Object.values(depth));
   ids.forEach(id => { if (depth[id] === undefined) depth[id] = maxD + 1; });
-
   const layers = {};
   ids.forEach(id => (layers[depth[id]] = layers[depth[id]] || []).push(id));
-
   const nL = Object.keys(layers).length;
   const nodeW = 180, nodeH = 56, gapX = 100, gapY = 50, padX = 100, padY = 60;
-  const maxPerLayer = Math.max(...Object.values(layers).map(l => l.length));
+  const maxPL = Math.max(...Object.values(layers).map(l => l.length));
   const totalW = padX * 2 + nL * nodeW + (nL - 1) * gapX;
-  const totalH = padY * 2 + maxPerLayer * nodeH + (maxPerLayer - 1) * gapY;
-
+  const totalH = padY * 2 + maxPL * nodeH + (maxPL - 1) * gapY;
   const pos = {};
   Object.entries(layers).forEach(([d, grp]) => {
     const di = parseInt(d);
     const x = padX + nodeW / 2 + di * (nodeW + gapX);
     const colH = grp.length * nodeH + (grp.length - 1) * gapY;
     const startY = (totalH - colH) / 2;
-    grp.forEach((id, i) => {
-      pos[id] = { x, y: startY + nodeH / 2 + i * (nodeH + gapY) };
-    });
+    grp.forEach((id, i) => { pos[id] = { x, y: startY + nodeH / 2 + i * (nodeH + gapY) }; });
   });
-
   return { pos, w: Math.max(totalW, 600), h: Math.max(totalH, 300) };
 }
 
-
 /* ═══════════════════════════════════════════
-   CLIENT-SIDE DECOMPILER
+   DECOMPILER
    ═══════════════════════════════════════════ */
-
 function decompileFSM(fsm) {
   if (!fsm) return "";
   const L = [];
@@ -278,13 +335,11 @@ function decompileFSM(fsm) {
   const rules = (fsm.rules || []).slice().sort((a, b) => a.id.localeCompare(b.id));
   const params = fsm.params || {};
   const initial = fsm.initial_state;
-  const unmappable = (fsm.unmappable_rules || []).slice().sort((a, b) => (a.id || "").localeCompare(b.id || ""));
-
+  const unmappable = (fsm.unmappable_rules || []).slice().sort((a, b) => (a.id||"").localeCompare(b.id||""));
   L.push("=".repeat(60), `CONTRACT: ${cid}`, "=".repeat(60), "");
   L.push("PARTIES", "─".repeat(40));
   parties.forEach((p, i) => L.push(`  ${i + 1}. ${p}`));
   L.push("");
-
   const am = params.amounts || {}, ra = params.rates || {}, du = params.durations || {};
   if (Object.keys(am).length || Object.keys(ra).length || Object.keys(du).length) {
     L.push("CONTRACT PARAMETERS", "─".repeat(40));
@@ -293,14 +348,9 @@ function decompileFSM(fsm) {
     Object.entries(du).sort().forEach(([k, v]) => L.push(`  ${k.replace(/_/g, " ")}: ${v} days`));
     L.push("");
   }
-
   L.push("CONTRACT STATES", "─".repeat(40));
-  states.forEach(s => {
-    let m = ""; if (s.id === initial) m = " <- initial"; if (s.terminal) m = " <- terminal";
-    L.push(`  ${s.description}${m}`);
-  });
+  states.forEach(s => { let m = ""; if (s.id === initial) m = " <- initial"; if (s.terminal) m = " <- terminal"; L.push(`  ${s.description}${m}`); });
   L.push("");
-
   const mappable = rules.filter(r => r.mappable !== false);
   if (mappable.length) {
     L.push("RULES", "─".repeat(40));
@@ -309,81 +359,42 @@ function decompileFSM(fsm) {
       L.push(`    ${r.action}`);
       if (r.description) L.push(`    ${r.description}`);
       (r.triggers || []).forEach(t => L.push(`    Trigger [${t.type}]: ${t.condition}`));
-      (r.effects || []).forEach(e => {
-        L.push(`    Effect [${e.type}]: ${e.description}`);
-        if (e.payment_formula) L.push(`      Formula: ${e.payment_formula}`);
-        if (e.cap) L.push(`      Cap: $${e.cap}`);
-      });
+      (r.effects || []).forEach(e => { L.push(`    Effect [${e.type}]: ${e.description}`); if (e.payment_formula) L.push(`      Formula: ${e.payment_formula}`); if (e.cap) L.push(`      Cap: $${e.cap}`); });
       L.push("");
     });
   }
-
   L.push("STATE TRANSITIONS", "─".repeat(40));
   const byS = {};
-  transitions.forEach(t => {
-    const fs = t.from_states || t.from || [t.from_state];
-    (Array.isArray(fs) ? fs : [fs]).forEach(f => (byS[f] = byS[f] || []).push(t));
-  });
-  states.forEach(s => {
-    const ts = byS[s.id]; if (!ts) return;
-    L.push(`  When in "${s.description}":`);
-    ts.sort((a, b) => a.id.localeCompare(b.id)).forEach(t => {
-      const ev = (t.event_type || "").replace(/_/g, " ");
-      const tgt = states.find(st => st.id === (t.to_state || t.to));
-      L.push(`    On "${ev}":`);
-      if (t.guard) L.push(`      Guard: ${t.guard}`);
-      if (t.description) L.push(`      ${t.description}`);
-      const same = (t.from_states || t.from || []).every(f => f === (t.to_state || t.to));
-      L.push(`      -> ${same ? "remains" : `"${tgt?.description || t.to_state || t.to}"`}`);
-    });
-    L.push("");
-  });
-
-  if (unmappable.length) {
-    L.push("UNMODELED RULES", "─".repeat(40));
-    unmappable.forEach(r => {
-      L.push(`  ${r.id} [${r.type}] ${r.description || r.action || ""}`);
-      if (r.unmappable_reason) L.push(`    Reason: ${r.unmappable_reason}`);
-    });
-    L.push("");
-  }
+  transitions.forEach(t => { const fs = t.from_states || t.from || [t.from_state]; (Array.isArray(fs) ? fs : [fs]).forEach(f => (byS[f] = byS[f] || []).push(t)); });
+  states.forEach(s => { const ts = byS[s.id]; if (!ts) return; L.push(`  When in "${s.description}":`); ts.sort((a, b) => a.id.localeCompare(b.id)).forEach(t => { const ev = (t.event_type || "").replace(/_/g, " "); const tgt = states.find(st => st.id === (t.to_state || t.to)); L.push(`    On "${ev}":`); if (t.guard) L.push(`      Guard: ${t.guard}`); if (t.description) L.push(`      ${t.description}`); const same = (t.from_states || t.from || []).every(f => f === (t.to_state || t.to)); L.push(`      -> ${same ? "remains" : `"${tgt?.description || t.to_state || t.to}"`}`); }); L.push(""); });
+  if (unmappable.length) { L.push("UNMODELED RULES", "─".repeat(40)); unmappable.forEach(r => { L.push(`  ${r.id} [${r.type}] ${r.description || r.action || ""}`); if (r.unmappable_reason) L.push(`    Reason: ${r.unmappable_reason}`); }); L.push(""); }
   L.push("=".repeat(60), "END OF CONTRACT", "=".repeat(60));
   return L.join("\n");
 }
 
-
 /* ═══════════════════════════════════════════
    HELPERS
    ═══════════════════════════════════════════ */
-
 function truncate(s, n) { return s && s.length > n ? s.slice(0, n - 1) + "…" : s; }
-
-function evColor(ev) {
-  const map = { purchase: "#60a5fa", cash_advance: "#c084fc", payment_received: "#34d399", payment_deadline_passed: "#f87171", terminated: "#9ca3af" };
-  return map[ev] || `hsl(${[...(ev || "x")].reduce((a, c) => a + c.charCodeAt(0), 0) % 360}, 55%, 60%)`;
-}
-
+function evColor(ev) { return `hsl(${[...(ev || "x")].reduce((a, c) => a + c.charCodeAt(0), 0) % 360}, 50%, 45%)`; }
 const RC = {
-  OBLIGATION: { bg: "#dbeafe", fg: "#1e40af", border: "#93c5fd" },
-  PROHIBITION: { bg: "#fee2e2", fg: "#991b1b", border: "#fca5a5" },
-  PERMISSION: { bg: "#dcfce7", fg: "#166534", border: "#86efac" },
-  POWER: { bg: "#ffedd5", fg: "#9a3412", border: "#fdba74" },
-  IMMUNITY: { bg: "#f3e8ff", fg: "#6b21a8", border: "#d8b4fe" },
-  REPRESENTATION: { bg: "#fef9c3", fg: "#854d0e", border: "#fde047" },
-  WARRANTY: { bg: "#ede9fe", fg: "#5b21b6", border: "#c4b5fd" },
-  COVENANT: { bg: "#f1f5f9", fg: "#475569", border: "#cbd5e1" },
+  OBLIGATION: { bg: "#dbeafe", fg: "#1e40af", b: "#93c5fd" },
+  PROHIBITION: { bg: "#fee2e2", fg: "#991b1b", b: "#fca5a5" },
+  PERMISSION: { bg: "#dcfce7", fg: "#166534", b: "#86efac" },
+  POWER: { bg: "#ffedd5", fg: "#9a3412", b: "#fdba74" },
+  IMMUNITY: { bg: "#f3e8ff", fg: "#6b21a8", b: "#d8b4fe" },
+  REPRESENTATION: { bg: "#fef9c3", fg: "#854d0e", b: "#fde047" },
+  WARRANTY: { bg: "#ede9fe", fg: "#5b21b6", b: "#c4b5fd" },
+  COVENANT: { bg: "#f1f5f9", fg: "#475569", b: "#cbd5e1" },
 };
-
-function cleanId(cid) {
-  return (cid || "").replace(/^C_/, "").replace(/_contract$/i, "").replace(/_/g, " ");
-}
+function cleanId(cid) { return (cid || "").replace(/^C_/, "").replace(/_contract$/i, "").replace(/_/g, " "); }
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 
 /* ═══════════════════════════════════════════
-   SVG DIAGRAM (adapted from visualizer.html)
+   SVG DIAGRAM with validation highlights
    ═══════════════════════════════════════════ */
-
-function Diagram({ fsm, layout }) {
+function Diagram({ fsm, layout, highlights, scanning }) {
   const { pos, w, h } = layout;
   const states = fsm.states || [];
   const transitions = fsm.transitions || [];
@@ -391,6 +402,7 @@ function Diagram({ fsm, layout }) {
   const NW = 170, NH = 48;
   const [tip, setTip] = useState(null);
   const svgRef = useRef(null);
+  const hl = highlights || {};
 
   const edges = {};
   transitions.forEach(t => {
@@ -403,92 +415,65 @@ function Diagram({ fsm, layout }) {
   });
 
   const handleEnter = (e, s) => {
-    const el = svgRef.current;
-    if (!el) return;
+    const el = svgRef.current; if (!el) return;
     const rect = el.getBoundingClientRect();
-    setTip({
-      x: e.clientX - rect.left + el.scrollLeft,
-      y: e.clientY - rect.top + el.scrollTop - 12,
-      state: s,
-    });
+    setTip({ x: e.clientX - rect.left + el.scrollLeft, y: e.clientY - rect.top + el.scrollTop - 12, state: s });
   };
 
+  function nodeColors(s) {
+    const status = hl[s.id];
+    if (status === "checking") return { fi: "#2a2310", st: "#f59e0b", tx: "#fbbf24", glow: true, glowColor: "#f59e0b" };
+    if (status === "pass") return { fi: "#052e16", st: "#34d399", tx: "#6ee7b7", glow: true, glowColor: "#34d399" };
+    if (status === "fail") return { fi: "#2c0b0b", st: "#ef4444", tx: "#fca5a5", glow: true, glowColor: "#ef4444" };
+    let fi = "#18181b", st = "#3f3f46", tx = "#a1a1aa";
+    if (s.id === initial) { st = "#60a5fa"; tx = "#93c5fd"; fi = "#0c1929"; }
+    if (s.terminal) { st = "#ef4444"; tx = "#fca5a5"; fi = "#1c0c0c"; }
+    return { fi, st, tx, glow: false };
+  }
+
   return (
-    <div ref={svgRef} style={{ overflowX: "auto", overflowY: "auto", maxHeight: 480, position: "relative", padding: 8 }}>
+    <div ref={svgRef} style={{ overflowX: "auto", overflowY: "auto", maxHeight: 420, position: "relative", padding: 8 }}>
+      {scanning && <div className="scanning-overlay" />}
       {tip && (
-        <div style={{
-          position: "absolute", left: tip.x, top: tip.y, transform: "translate(-50%, -100%)",
+        <div style={{ position: "absolute", left: tip.x, top: tip.y, transform: "translate(-50%,-100%)",
           background: "#27272a", border: "1px solid #3f3f46", borderRadius: 6,
-          padding: "8px 12px", maxWidth: 320, zIndex: 10, pointerEvents: "none",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.5)", color: "#fafafa",
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 3 }}>{tip.state.description}</div>
-          <div style={{ fontSize: 9, fontFamily: mono, color: "#71717a" }}>
-            {tip.state.id}{tip.state.terminal ? " · terminal" : ""}{tip.state.id === initial ? " · initial" : ""}
-          </div>
-          {(tip.state.active_rule_ids || []).length > 0 && (
-            <div style={{ fontSize: 9, fontFamily: mono, color: "#a1a1aa", marginTop: 4 }}>
-              Rules: {tip.state.active_rule_ids.join(", ")}
-            </div>
-          )}
+          padding: "7px 11px", maxWidth: 300, zIndex: 10, pointerEvents: "none",
+          boxShadow: "0 4px 20px rgba(0,0,0,.5)", color: "#fafafa" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, marginBottom: 2 }}>{tip.state.description}</div>
+          <div style={{ fontSize: 8, fontFamily: mono, color: "#71717a" }}>{tip.state.id}{tip.state.terminal?" · terminal":""}{tip.state.id===initial?" · initial":""}</div>
+          {(tip.state.active_rule_ids||[]).length > 0 && <div style={{ fontSize: 8, fontFamily: mono, color: "#a1a1aa", marginTop: 3 }}>Rules: {tip.state.active_rule_ids.join(", ")}</div>}
         </div>
       )}
-      <svg viewBox={`0 0 ${w} ${h}`} width={Math.max(w, 500)} height={Math.max(h, 260)} style={{ display: "block", minWidth: "100%" }}>
+      <svg viewBox={`0 0 ${w} ${h}`} width={Math.max(w, 500)} height={Math.max(h, 240)} style={{ display: "block", minWidth: "100%" }}>
         <defs>
-          <marker id="ar" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="6" markerHeight="4" orient="auto">
-            <path d="M0 0L10 3.5L0 7z" fill="#52525b" />
-          </marker>
-          <filter id="gl"><feGaussianBlur stdDeviation="3" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+          <marker id="ar" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="6" markerHeight="4" orient="auto"><path d="M0 0L10 3.5L0 7z" fill="#52525b" /></marker>
+          <filter id="glow-g"><feGaussianBlur stdDeviation="4" result="b"/><feFlood floodColor="#34d399" floodOpacity="0.5" result="c"/><feComposite in="c" in2="b" operator="in" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <filter id="glow-a"><feGaussianBlur stdDeviation="4" result="b"/><feFlood floodColor="#f59e0b" floodOpacity="0.5" result="c"/><feComposite in="c" in2="b" operator="in" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <filter id="glow-r"><feGaussianBlur stdDeviation="4" result="b"/><feFlood floodColor="#ef4444" floodOpacity="0.5" result="c"/><feComposite in="c" in2="b" operator="in" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         </defs>
-
-        {/* Edges */}
         {Object.entries(edges).map(([k, ts]) => {
           const [fk, tk] = k.split("→");
           const fp = pos[fk], tp = pos[tk];
           if (!fp || !tp) return null;
-
-          if (fk === tk) {
-            return <path key={k} d={`M${fp.x - 20} ${fp.y - NH / 2}C${fp.x - 55} ${fp.y - NH - 30},${fp.x + 55} ${fp.y - NH - 30},${fp.x + 20} ${fp.y - NH / 2}`}
-              fill="none" stroke="#52525b" strokeWidth={0.8} markerEnd="url(#ar)" />;
-          }
-          const dx = tp.x - fp.x, dy = tp.y - fp.y, ln = Math.sqrt(dx * dx + dy * dy) || 1;
-          const nx = dx / ln, ny = dy / ln;
-          const x1 = fp.x + nx * (NW / 2 + 4), y1 = fp.y + ny * (NH / 2 + 2);
-          const x2 = tp.x - nx * (NW / 2 + 4), y2 = tp.y - ny * (NH / 2 + 2);
-          const mx = (x1 + x2) / 2 - ny * 18, my = (y1 + y2) / 2 + nx * 18;
-
-          const label = ts.length === 1 ? ts[0].event_type?.replace(/_/g, " ") : `${ts.length} events`;
-          const lx = (x1 + mx) / 2, ly = (y1 + my) / 2;
-
-          return <g key={k}>
-            <path d={`M${x1} ${y1}Q${mx} ${my} ${x2} ${y2}`} fill="none" stroke="#52525b" strokeWidth={0.8} markerEnd="url(#ar)" />
-            {label && <text x={lx} y={ly - 6} textAnchor="middle" fill="#71717a" fontSize="7" fontFamily={mono}>{truncate(label, 22)}</text>}
-          </g>;
+          if (fk === tk) return <path key={k} d={`M${fp.x-20} ${fp.y-NH/2}C${fp.x-55} ${fp.y-NH-30},${fp.x+55} ${fp.y-NH-30},${fp.x+20} ${fp.y-NH/2}`} fill="none" stroke="#52525b" strokeWidth={.8} markerEnd="url(#ar)" />;
+          const dx=tp.x-fp.x, dy=tp.y-fp.y, ln=Math.sqrt(dx*dx+dy*dy)||1;
+          const nx=dx/ln, ny=dy/ln;
+          const x1=fp.x+nx*(NW/2+4), y1=fp.y+ny*(NH/2+2), x2=tp.x-nx*(NW/2+4), y2=tp.y-ny*(NH/2+2);
+          const mx=(x1+x2)/2-ny*18, my=(y1+y2)/2+nx*18;
+          const label = ts.length===1 ? ts[0].event_type?.replace(/_/g," ") : `${ts.length} events`;
+          const lx=(x1+mx)/2, ly=(y1+my)/2;
+          return <g key={k}><path d={`M${x1} ${y1}Q${mx} ${my} ${x2} ${y2}`} fill="none" stroke="#52525b" strokeWidth={.8} markerEnd="url(#ar)" />{label && <text x={lx} y={ly-6} textAnchor="middle" fill="#71717a" fontSize="7" fontFamily={mono}>{truncate(label,22)}</text>}</g>;
         })}
-
-        {/* Nodes */}
         {states.map(s => {
-          const p = pos[s.id];
-          if (!p) return null;
-          let fi = "#18181b", st = "#3f3f46", tx = "#a1a1aa";
-          if (s.id === initial) { st = "#60a5fa"; tx = "#93c5fd"; fi = "#0c1929"; }
-          if (s.terminal) { st = "#ef4444"; tx = "#fca5a5"; fi = "#1c0c0c"; }
-
+          const p = pos[s.id]; if (!p) return null;
+          const nc = nodeColors(s);
+          const filterUrl = nc.glow ? (nc.glowColor==="#34d399"?"url(#glow-g)":nc.glowColor==="#f59e0b"?"url(#glow-a)":"url(#glow-r)") : undefined;
           return (
-            <g key={s.id}
-              onMouseEnter={(e) => handleEnter(e, s)}
-              onMouseMove={(e) => handleEnter(e, s)}
-              onMouseLeave={() => setTip(null)}
-              style={{ cursor: "pointer" }}>
-              <rect x={p.x - NW / 2} y={p.y - NH / 2} width={NW} height={NH} rx={6}
-                fill={fi} stroke={st} strokeWidth={1} />
-              {s.id === initial && <polygon points={`${p.x - NW / 2 - 14},${p.y} ${p.x - NW / 2 - 4},${p.y - 5} ${p.x - NW / 2 - 4},${p.y + 5}`} fill={st} />}
-              {s.terminal && <rect x={p.x - NW / 2 + 3} y={p.y - NH / 2 + 3} width={NW - 6} height={NH - 6} rx={4}
-                fill="none" stroke={st} strokeWidth={0.5} strokeDasharray="3 2" />}
-              <text x={p.x} y={p.y + 1} textAnchor="middle" dominantBaseline="middle"
-                fill={tx} fontSize="8.5" fontFamily={mono} fontWeight={500}>
-                {truncate(s.description || s.id, 30)}
-              </text>
+            <g key={s.id} onMouseEnter={e=>handleEnter(e,s)} onMouseMove={e=>handleEnter(e,s)} onMouseLeave={()=>setTip(null)} style={{ cursor: "pointer" }}>
+              <rect x={p.x-NW/2} y={p.y-NH/2} width={NW} height={NH} rx={6} fill={nc.fi} stroke={nc.st} strokeWidth={nc.glow?2:1} filter={filterUrl} />
+              {s.id===initial && <polygon points={`${p.x-NW/2-14},${p.y} ${p.x-NW/2-4},${p.y-5} ${p.x-NW/2-4},${p.y+5}`} fill={nc.st} />}
+              {s.terminal && <rect x={p.x-NW/2+3} y={p.y-NH/2+3} width={NW-6} height={NH-6} rx={4} fill="none" stroke={nc.st} strokeWidth={.5} strokeDasharray="3 2" />}
+              <text x={p.x} y={p.y+1} textAnchor="middle" dominantBaseline="middle" fill={nc.tx} fontSize="8.5" fontFamily={mono} fontWeight={nc.glow?700:500}>{truncate(s.description||s.id,30)}</text>
             </g>
           );
         })}
@@ -501,7 +486,6 @@ function Diagram({ fsm, layout }) {
 /* ═══════════════════════════════════════════
    APP
    ═══════════════════════════════════════════ */
-
 function App() {
   const [contractList, setContractList] = useState([]);
   const [fsms, setFsms] = useState({});
@@ -509,107 +493,210 @@ function App() {
   const [tab, setTab] = useState("diagram");
   const [uploading, setUploading] = useState(false);
   const [uploadResults, setUploadResults] = useState([]);
-  const [question, setQuestion] = useState("");
-  const [qaResult, setQaResult] = useState(null);
-  const [qaLoading, setQaLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef(null);
 
-  // Load contract list
+  // Validation state
+  const [validating, setValidating] = useState(false);
+  const [valResult, setValResult] = useState(null);
+  const [valStep, setValStep] = useState(-1);
+  const [valNodeStates, setValNodeStates] = useState({});
+  const [scanning, setScanning] = useState(false);
+
+  // Q&A state
+  const [question, setQuestion] = useState("");
+  const [qaStreaming, setQaStreaming] = useState(false);
+  const [qaStage, setQaStage] = useState(null);
+  const [gbrainText, setGbrainText] = useState("");
+  const [validationText, setValidationText] = useState("");
+  const [qaElapsed, setQaElapsed] = useState(0);
+  const [s1Done, setS1Done] = useState(false);
+  const [s2Done, setS2Done] = useState(false);
+  const elapsedRef = useRef(null);
+
+  // Load contracts
   const loadContracts = useCallback(async () => {
     try {
       const res = await fetch("/api/contracts");
       const data = await res.json();
       setContractList(data.contracts || []);
-      if (!selected && data.contracts?.length) {
-        setSelected(data.contracts[0].contract_id);
-      }
-    } catch (e) { console.error("Failed to load contracts:", e); }
+      if (!selected && data.contracts?.length) setSelected(data.contracts[0].contract_id);
+    } catch (e) { console.error(e); }
   }, []);
-
   useEffect(() => { loadContracts(); }, [loadContracts]);
 
-  // Load FSM when selected changes
+  // Load FSM
   useEffect(() => {
     if (!selected || fsms[selected]) return;
     fetch(`/api/fsm/${selected}`)
       .then(r => r.json())
       .then(fsm => setFsms(prev => ({ ...prev, [selected]: fsm })))
-      .catch(e => console.error("Failed to load FSM:", e));
+      .catch(console.error);
   }, [selected]);
 
   const fsm = fsms[selected];
-  const layout = useMemo(() =>
-    fsm ? autoLayout(fsm.states || [], fsm.transitions || [], fsm.initial_state) : null,
-    [fsm]
-  );
+  const layout = useMemo(() => fsm ? autoLayout(fsm.states||[], fsm.transitions||[], fsm.initial_state) : null, [fsm]);
   const english = useMemo(() => fsm ? decompileFSM(fsm) : "", [fsm]);
 
-  // Upload handler
+  // File upload
   async function handleFiles(files) {
     if (!files?.length) return;
-    setUploading(true);
-    setUploadResults([]);
+    setUploading(true); setUploadResults([]);
     try {
-      const fileData = await Promise.all(
-        Array.from(files).map(async f => ({ name: f.name, content: await f.text() }))
-      );
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ files: fileData }),
-      });
+      const fd = await Promise.all(Array.from(files).map(async f => ({ name: f.name, content: await f.text() })));
+      const res = await fetch("/api/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ files: fd }) });
       const data = await res.json();
       setUploadResults(data.results || []);
       await loadContracts();
-      const firstOk = (data.results || []).find(r => r.ok);
-      if (firstOk) {
-        setSelected(firstOk.contract_id);
-        setFsms({});
+      const ok1 = (data.results||[]).find(r => r.ok);
+      if (ok1) { setSelected(ok1.contract_id); setFsms({}); }
+    } catch (e) { setUploadResults([{ name: "upload", error: e.message }]); }
+    finally { setUploading(false); }
+  }
+
+  // ── FSM Validation (animated) ────────────────────────────────────────────
+  async function runValidation() {
+    if (!fsm || !selected) return;
+    setValidating(true);
+    setValResult(null);
+    setValStep(-1);
+    setValNodeStates({});
+    setScanning(true);
+    setTab("diagram");
+
+    try {
+      const res = await fetch(`/api/validate/${selected}`);
+      const data = await res.json();
+      setValResult(data);
+
+      await delay(400);
+
+      for (let ci = 0; ci < data.checks.length; ci++) {
+        const check = data.checks[ci];
+        setValStep(ci);
+        await delay(300);
+
+        if (check.name === "reachability" && check.details) {
+          const sorted = [...check.details].sort((a,b) => a.depth - b.depth);
+          for (const d of sorted) {
+            setValNodeStates(prev => ({ ...prev, [d.state_id]: "checking" }));
+            await delay(200);
+            setValNodeStates(prev => ({ ...prev, [d.state_id]: d.reachable ? "pass" : "fail" }));
+            await delay(120);
+          }
+        } else if (check.name === "dead_ends" && check.details) {
+          for (const d of check.details) {
+            setValNodeStates(prev => ({ ...prev, [d.state_id]: "checking" }));
+            await delay(150);
+            setValNodeStates(prev => ({ ...prev, [d.state_id]: d.has_outbound ? "pass" : "fail" }));
+            await delay(100);
+          }
+        } else if (check.name === "terminal_reachability" && check.details) {
+          for (const d of check.details) {
+            setValNodeStates(prev => ({ ...prev, [d.state_id]: "checking" }));
+            await delay(200);
+            setValNodeStates(prev => ({ ...prev, [d.state_id]: d.reachable ? "pass" : "fail" }));
+            await delay(150);
+          }
+        } else {
+          await delay(500);
+        }
+        await delay(200);
       }
+
+      setScanning(false);
+      await delay(300);
     } catch (e) {
-      setUploadResults([{ name: "upload", error: e.message }]);
+      console.error(e);
+      setScanning(false);
     } finally {
-      setUploading(false);
+      setValidating(false);
     }
   }
 
-  // Q&A handler
+  // ── Streaming Q&A ────────────────────────────────────────────────────────
   async function handleAsk() {
-    if (!question.trim()) return;
-    setQaLoading(true);
-    setQaResult(null);
+    if (!question.trim() || qaStreaming) return;
+    setQaStreaming(true);
+    setQaStage("stage1");
+    setGbrainText("");
+    setValidationText("");
+    setS1Done(false);
+    setS2Done(false);
+    setQaElapsed(0);
+    const t0 = Date.now();
+    elapsedRef.current = setInterval(() => setQaElapsed(((Date.now() - t0) / 1000).toFixed(1)), 100);
+
     try {
-      const res = await fetch("/api/ask", {
+      const response = await fetch("/api/ask-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
       });
-      setQaResult(await res.json());
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const ev = JSON.parse(line.slice(6));
+            if (ev.type === "stage1_start") setQaStage("stage1");
+            else if (ev.type === "gbrain_chunk") setGbrainText(prev => prev + ev.text);
+            else if (ev.type === "stage1_complete") { setS1Done(true); setQaStage("stage2"); }
+            else if (ev.type === "stage2_start") setQaStage("stage2");
+            else if (ev.type === "validation_chunk") setValidationText(prev => prev + ev.text);
+            else if (ev.type === "stage2_complete") setS2Done(true);
+            else if (ev.type === "error") setValidationText(prev => prev + "\n\nError: " + ev.message);
+          } catch (e) {}
+        }
+      }
     } catch (e) {
-      setQaResult({ error: e.message });
+      setValidationText(prev => prev + "\n\nConnection error: " + e.message);
     } finally {
-      setQaLoading(false);
+      clearInterval(elapsedRef.current);
+      setQaStreaming(false);
+      setQaStage("done");
+      setS1Done(true);
+      setS2Done(true);
     }
   }
 
-  const nStates = fsm ? (fsm.states || []).length : 0;
-  const nTrans = fsm ? (fsm.transitions || []).length : 0;
-  const nRules = fsm ? (fsm.rules || []).filter(r => r.mappable !== false).length : 0;
+  // When switching contracts, reset validation state
+  useEffect(() => {
+    setValResult(null); setValStep(-1); setValNodeStates({}); setScanning(false);
+  }, [selected]);
 
+  const nS = fsm ? (fsm.states||[]).length : 0;
+  const nT = fsm ? (fsm.transitions||[]).length : 0;
+  const nR = fsm ? (fsm.rules||[]).filter(r => r.mappable !== false).length : 0;
   const tabs = [
-    { id: "diagram", label: `Diagram (${nStates})` },
-    ...(nRules ? [{ id: "rules", label: `Rules (${nRules})` }] : []),
+    { id: "diagram", label: `Diagram (${nS})` },
+    ...(nR ? [{ id: "rules", label: `Rules (${nR})` }] : []),
     { id: "english", label: "English" },
   ];
 
+  const checkIcons = { pending: "·", running: "○", pass: "✓", fail: "✗" };
+  function checkStatus(ci) {
+    if (!valResult) return "pending";
+    if (ci > valStep) return "pending";
+    if (ci === valStep && validating) return "running";
+    return valResult.checks[ci].passed ? "pass" : "fail";
+  }
+
   return (<>
-    {/* ── Header ── */}
+    {/* Header */}
     <header className="hdr">
       <h1>Contract FSM Console</h1>
       <div className="hdr-pills">
         {contractList.map(c =>
-          <span key={c.contract_id} className="pill" style={{ cursor: "pointer", borderColor: c.contract_id === selected ? "var(--green)" : undefined }}
+          <span key={c.contract_id} className={`pill${c.contract_id===selected?" sel":""}`}
             onClick={() => setSelected(c.contract_id)}>
             {cleanId(c.contract_id)}: {c.state_count}S / {c.transition_count}T
           </span>
@@ -617,251 +704,236 @@ function App() {
       </div>
     </header>
 
-    {/* ── Main ── */}
     <div className="main">
-
       {/* ── Sidebar ── */}
       <div className="sidebar">
-
-        {/* Upload */}
         <div className="card">
           <h2>Upload Contracts</h2>
-          <div
-            className={`dropzone${dragOver ? " over" : ""}`}
-            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={e => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
-            onClick={() => fileRef.current?.click()}
-          >
-            <p>{uploading ? "Processing contracts…" : "Drop .txt or .json files here"}</p>
-            <small>.txt files run through the full pipeline (requires API key). .json files load FSMs directly.</small>
-            <input ref={fileRef} type="file" accept=".txt,.md,.json" multiple
-              onChange={e => handleFiles(e.target.files)} />
-            {uploading && <div style={{ marginTop: 12 }}><span className="spinner"></span></div>}
+          <div className={`dropzone${dragOver?" over":""}`}
+            onDragOver={e=>{e.preventDefault();setDragOver(true);}}
+            onDragLeave={()=>setDragOver(false)}
+            onDrop={e=>{e.preventDefault();setDragOver(false);handleFiles(e.dataTransfer.files);}}
+            onClick={()=>fileRef.current?.click()}>
+            <p>{uploading ? "Processing…" : "Drop .txt or .json files"}</p>
+            <small>.txt = full pipeline &middot; .json = direct load</small>
+            <input ref={fileRef} type="file" accept=".txt,.md,.json" multiple onChange={e=>handleFiles(e.target.files)} />
+            {uploading && <div style={{marginTop:8}}><span className="spinner"></span></div>}
           </div>
-          {uploadResults.length > 0 && (
-            <div style={{ marginTop: 10 }}>
-              {uploadResults.map((r, i) => (
-                <div key={i} className="upload-result">
-                  {r.ok
-                    ? <><span className="upload-ok">OK</span> <span>{r.contract_id} &mdash; {r.state_count} states, {r.transition_count} transitions</span></>
-                    : <><span className="upload-err">ERR</span> <span>{r.name}: {r.error}</span></>
-                  }
-                </div>
-              ))}
-            </div>
-          )}
+          {uploadResults.length > 0 && <div style={{marginTop:8}}>
+            {uploadResults.map((r,i) => <div key={i} className="upload-r">
+              {r.ok ? <><span className="upload-ok">OK</span><span>{r.contract_id} — {r.state_count}S, {r.transition_count}T</span></> : <><span className="upload-err">ERR</span><span>{r.name}: {r.error}</span></>}
+            </div>)}
+          </div>}
         </div>
 
-        {/* Contract list */}
         <div className="card">
-          <h2>Loaded Contracts ({contractList.length})</h2>
-          {contractList.length === 0 ? (
-            <p style={{ fontSize: 13, color: "var(--muted)" }}>No contracts loaded yet. Upload files or pre-populate the output/ directory.</p>
-          ) : (
+          <h2>Contracts ({contractList.length})</h2>
+          {contractList.length === 0 ? <p style={{fontSize:12,color:"var(--muted)"}}>No contracts loaded.</p> :
             <div className="clist">
-              {contractList.map(c => (
-                <div key={c.contract_id}
-                  className={`citem${c.contract_id === selected ? " active" : ""}`}
-                  onClick={() => setSelected(c.contract_id)}>
-                  <span className="cname">{cleanId(c.contract_id)}</span>
-                  <span className="cmeta">{c.state_count}S &middot; {c.transition_count}T &middot; {c.rule_count}R</span>
-                </div>
-              ))}
+              {contractList.map(c => <div key={c.contract_id} className={`citem${c.contract_id===selected?" active":""}`} onClick={()=>setSelected(c.contract_id)}>
+                <span className="cn">{cleanId(c.contract_id)}</span>
+                <span className="cm">{c.state_count}S &middot; {c.transition_count}T</span>
+              </div>)}
             </div>
-          )}
-        </div>
-
-        {/* Q&A */}
-        <div className="card">
-          <h2>Ask About FSMs</h2>
-          <textarea className="qa-input" value={question}
-            onChange={e => setQuestion(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleAsk(); }}
-            placeholder="Ask a question about the loaded contracts and their FSMs..." />
-          <div className="qa-row">
-            <button className="btn btn-green" onClick={handleAsk} disabled={qaLoading || !question.trim()}>
-              {qaLoading ? "Thinking…" : "Ask"}
-            </button>
-          </div>
-          {qaResult && (
-            <>
-              {qaResult.error
-                ? <div className="qa-answer" style={{ background: "var(--red-bg)", color: "#7f1d1d" }}>{qaResult.error}</div>
-                : <div className="qa-answer">{qaResult.answer}</div>
-              }
-              {qaResult.gbrain && (
-                <div className="qa-gbrain">
-                  <strong style={{ fontSize: 10 }}>GBrain {qaResult.gbrain.available ? "(connected)" : "(not available)"}</strong>
-                  <br />{qaResult.gbrain.output || "No output."}
-                </div>
-              )}
-            </>
-          )}
+          }
         </div>
       </div>
 
       {/* ── Content ── */}
       <div className="content">
         {!selected || !fsm ? (
-          <div className="card">
-            <div className="empty-state">
-              <h3>{!selected ? "Select a Contract" : "Loading…"}</h3>
-              <p>{!selected
-                ? "Upload contract files or select a pre-loaded contract from the sidebar to view its finite state machine."
-                : "Fetching FSM data…"
-              }</p>
-              {!selected && !contractList.length && (
-                <p style={{ marginTop: 16, fontSize: 12, color: "var(--muted)" }}>
-                  Tip: Place FSM JSON files in output/&lt;contract_id&gt;/fsm.json and restart the server, or upload .txt/.json files above.
-                </p>
-              )}
+          <div className="card"><div className="empty"><h3>{!selected ? "Select a Contract" : "Loading…"}</h3><p>Upload or select a contract to visualize its FSM.</p></div></div>
+        ) : (<>
+          {/* Contract header + tabs */}
+          <div className="card" style={{paddingBottom:0}}>
+            <div style={{display:"flex",alignItems:"baseline",gap:10,marginBottom:6}}>
+              <h1 style={{fontSize:18,fontWeight:750}}>{fsm.contract_id}</h1>
+              <span style={{fontSize:11,color:"var(--muted)",fontFamily:mono}}>{nS} states &middot; {nT} trans &middot; {nR} rules</span>
+              <button className="btn btn-sm btn-g" style={{marginLeft:"auto"}} onClick={runValidation} disabled={validating}>
+                {validating ? <><span className="spinner" style={{width:12,height:12,borderWidth:1.5,marginRight:6}}></span>Validating…</> : "Validate FSM"}
+              </button>
+            </div>
+            {fsm.parties?.length > 0 && <p style={{fontSize:11,color:"var(--muted)",marginBottom:8}}>Parties: {fsm.parties.join(", ")}</p>}
+            <div className="tabs">
+              {tabs.map(t => <button key={t.id} className={`tab${tab===t.id?" active":""}`} onClick={()=>setTab(t.id)}>{t.label}</button>)}
             </div>
           </div>
-        ) : (
-          <>
-            {/* Contract header */}
-            <div className="card" style={{ paddingBottom: 0 }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 8 }}>
-                <h1 style={{ fontSize: 20, fontWeight: 750 }}>{fsm.contract_id}</h1>
-                <span style={{ fontSize: 12, color: "var(--muted)", fontFamily: mono }}>
-                  {nStates} states &middot; {nTrans} transitions &middot; {nRules} rules
+
+          {/* Diagram tab */}
+          {tab === "diagram" && layout && (
+            <div className="canvas">
+              <Diagram fsm={fsm} layout={layout} highlights={valNodeStates} scanning={scanning} />
+            </div>
+          )}
+
+          {/* Validation panel */}
+          {tab === "diagram" && valResult && (
+            <div className="val-panel">
+              <div className="val-header">
+                <h2>FSM Structural Validation</h2>
+                <span style={{fontSize:11,color:"var(--muted)",fontFamily:mono}}>
+                  {valResult.summary.passed}/{valResult.summary.total_checks} checks passed
                 </span>
               </div>
-              {fsm.parties?.length > 0 && (
-                <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
-                  Parties: {fsm.parties.join(", ")}
-                </p>
-              )}
-              <div className="tabs">
-                {tabs.map(t =>
-                  <button key={t.id} className={`tab${tab === t.id ? " active" : ""}`}
-                    onClick={() => setTab(t.id)}>{t.label}</button>
-                )}
-              </div>
-            </div>
-
-            {/* Tab content */}
-            {tab === "diagram" && layout && (
-              <div className="canvas">
-                <Diagram fsm={fsm} layout={layout} />
-              </div>
-            )}
-
-            {tab === "diagram" && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                {/* States list */}
-                <div className="card">
-                  <h2>States</h2>
-                  {(fsm.states || []).map(s => (
-                    <div key={s.id} style={{
-                      padding: "8px 10px", borderRadius: 5, marginBottom: 4,
-                      background: s.id === fsm.initial_state ? "var(--blue-bg)" : s.terminal ? "var(--red-bg)" : "#f9fbf8",
-                      border: "1px solid var(--line)", fontSize: 12,
-                    }}>
-                      <div style={{ fontWeight: 650, fontFamily: mono, fontSize: 11 }}>
-                        {s.id}
-                        {s.id === fsm.initial_state && <span style={{ color: "var(--blue)", marginLeft: 6 }}>(initial)</span>}
-                        {s.terminal && <span style={{ color: "var(--red)", marginLeft: 6 }}>(terminal)</span>}
-                      </div>
-                      <div style={{ color: "var(--muted)", marginTop: 2 }}>{s.description}</div>
-                      {(s.active_rule_ids || []).length > 0 && (
-                        <div style={{ marginTop: 4, fontSize: 10, color: "var(--violet)", fontFamily: mono }}>
-                          Rules: {s.active_rule_ids.join(", ")}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Transitions list */}
-                <div className="card">
-                  <h2>Transitions</h2>
-                  {(fsm.transitions || []).map(t => (
-                    <div key={t.id} style={{
-                      padding: "8px 10px", borderRadius: 5, marginBottom: 4,
-                      background: "#f9fbf8", border: "1px solid var(--line)", fontSize: 12,
-                    }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                        <span style={{ fontWeight: 650, fontFamily: mono, fontSize: 10 }}>{t.id}</span>
-                        <span className="rule-badge" style={{
-                          background: evColor(t.event_type) + "22",
-                          color: evColor(t.event_type),
-                          border: `1px solid ${evColor(t.event_type)}44`,
-                        }}>{(t.event_type || "").replace(/_/g, " ")}</span>
-                      </div>
-                      <div style={{ color: "var(--muted)", fontFamily: mono, fontSize: 10 }}>
-                        {(t.from_states || []).join(", ")} &rarr; {t.to_state}
-                      </div>
-                      {t.guard && <div style={{ fontSize: 10, color: "var(--amber)", marginTop: 2, fontFamily: mono }}>Guard: {t.guard}</div>}
-                      {t.description && <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{t.description}</div>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {tab === "rules" && (
-              <div className="card">
-                {(fsm.rules || []).filter(r => r.mappable !== false).map(r => {
-                  const c = RC[r.type] || RC.COVENANT;
+              <div className="val-checks">
+                {valResult.checks.map((check, ci) => {
+                  const st = checkStatus(ci);
                   return (
-                    <div key={r.id} className="rule-card" style={{ borderLeftColor: c.border, borderLeftWidth: 3 }}>
-                      <div className="rule-head">
-                        <span className="rule-badge" style={{ background: c.bg, color: c.fg }}>{r.id}</span>
-                        <span className="rule-badge" style={{ background: c.bg, color: c.fg }}>{r.type}</span>
-                        <span style={{ fontSize: 11, color: "var(--muted)" }}>{r.party} &rarr; {r.counterparty}</span>
-                      </div>
-                      <div className="rule-action">{r.action}</div>
-                      {r.description && <div className="rule-desc">{r.description}</div>}
-                      {(r.triggers || []).map((t, i) => (
-                        <div key={i} style={{ fontSize: 11, color: "var(--blue)", marginTop: 3 }}>
-                          Trigger [{t.type}]: {t.condition}
-                        </div>
-                      ))}
-                      {(r.effects || []).map((e, i) => (
-                        <div key={i}>
-                          <div style={{ fontSize: 11, color: "var(--violet)", marginTop: 3 }}>
-                            Effect [{e.type}]: {e.description}
+                    <div key={ci} className={`val-check${ci <= valStep || !validating ? " visible" : ""}`}>
+                      <div className={`val-icon ${st}`}>{checkIcons[st]}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div className="val-title">{check.title}</div>
+                        <div className="val-desc">{check.description}</div>
+                        {ci <= valStep && check.details && check.details.length > 0 && (check.name === "reachability" || check.name === "dead_ends" || check.name === "terminal_reachability") && (
+                          <div className="val-details">
+                            {check.details.map((d, di) => {
+                              const sid = d.state_id;
+                              const nst = valNodeStates[sid];
+                              const cls = ci < valStep ? (
+                                check.name === "reachability" ? (d.reachable ? "pass" : "fail") :
+                                check.name === "dead_ends" ? (d.has_outbound ? "pass" : "fail") :
+                                (d.reachable ? "pass" : "fail")
+                              ) : (nst || "neutral");
+                              return <span key={di} className={`val-node mono ${cls}`}>{sid}</span>;
+                            })}
                           </div>
-                          {e.payment_formula && (
-                            <div className="rule-formula mono">Formula: {e.payment_formula}{e.cap ? ` (cap: $${e.cap})` : ""}</div>
-                          )}
-                        </div>
-                      ))}
+                        )}
+                        {ci <= valStep && check.name === "formula_syntax" && check.details && check.details.length > 0 && (
+                          <div className="val-details">
+                            {check.details.map((d, di) =>
+                              <span key={di} className={`val-node mono ${d.valid ? "pass" : "fail"}`}>{d.transition_id}: {truncate(d.formula, 30)}</span>
+                            )}
+                          </div>
+                        )}
+                        {ci <= valStep && check.name === "rule_references" && check.details && check.details.length > 0 && (
+                          <div className="val-details">
+                            {check.details.slice(0, 20).map((d, di) =>
+                              <span key={di} className={`val-node mono ${d.exists ? "pass" : "fail"}`}>{d.rule_id}</span>
+                            )}
+                            {check.details.length > 20 && <span className="val-node mono neutral">+{check.details.length - 20} more</span>}
+                          </div>
+                        )}
+                        {ci <= valStep && check.name === "constraint_values" && check.details && check.details.length > 0 && (
+                          <div className="val-details">
+                            {check.details.map((d, di) =>
+                              <span key={di} className={`val-node mono ${d.non_negative ? "pass" : "fail"}`}>{d.rule_id}.{d.constraint_id} = {d.value}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
-                {(fsm.unmappable_rules || []).length > 0 && (
-                  <>
-                    <h2 style={{ marginTop: 16 }}>Unmappable Rules ({fsm.unmappable_rules.length})</h2>
-                    {fsm.unmappable_rules.map(r => (
-                      <div key={r.id} className="rule-card" style={{ borderLeftColor: "var(--amber)", borderLeftWidth: 3 }}>
-                        <div className="rule-head">
-                          <span className="rule-badge" style={{ background: "var(--amber-bg)", color: "var(--amber)" }}>{r.id} {r.type}</span>
-                        </div>
-                        <div className="rule-desc">{r.description || r.action}</div>
-                        {r.unmappable_reason && (
-                          <div style={{ fontSize: 11, color: "var(--amber)", marginTop: 3 }}>Reason: {r.unmappable_reason}</div>
-                        )}
-                      </div>
-                    ))}
-                  </>
-                )}
+              </div>
+              {!validating && (
+                <div className={`val-banner ${valResult.overall?"pass":"fail"} show`}>
+                  {valResult.overall ? "✓ ALL CHECKS PASSED" : `✗ ${valResult.summary.failed} CHECK(S) FAILED`}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* States + Transitions (diagram tab, compact) */}
+          {tab === "diagram" && !valResult && (
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div className="card">
+                <h2>States</h2>
+                {(fsm.states||[]).map(s => (
+                  <div key={s.id} style={{padding:"6px 8px",borderRadius:5,marginBottom:3,background:s.id===fsm.initial_state?"var(--blue-bg)":s.terminal?"var(--red-bg)":"#f9fbf8",border:"1px solid var(--line)",fontSize:11}}>
+                    <span style={{fontWeight:650,fontFamily:mono,fontSize:10}}>{s.id}</span>
+                    {s.id===fsm.initial_state && <span style={{color:"var(--blue)",marginLeft:4,fontSize:9}}>(initial)</span>}
+                    {s.terminal && <span style={{color:"var(--red)",marginLeft:4,fontSize:9}}>(terminal)</span>}
+                    <div style={{color:"var(--muted)",marginTop:1,fontSize:10}}>{s.description}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="card">
+                <h2>Transitions</h2>
+                {(fsm.transitions||[]).map(t => (
+                  <div key={t.id} style={{padding:"6px 8px",borderRadius:5,marginBottom:3,background:"#f9fbf8",border:"1px solid var(--line)",fontSize:11}}>
+                    <span style={{fontWeight:650,fontFamily:mono,fontSize:10}}>{t.id}</span>
+                    <span className="badge" style={{background:evColor(t.event_type)+"18",color:evColor(t.event_type),marginLeft:6,fontSize:8}}>{(t.event_type||"").replace(/_/g," ")}</span>
+                    <div style={{color:"var(--muted)",fontFamily:mono,fontSize:9,marginTop:1}}>{(t.from_states||[]).join(",")} &rarr; {t.to_state}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Rules tab */}
+          {tab === "rules" && <div className="card">
+            {(fsm.rules||[]).filter(r=>r.mappable!==false).map(r => {
+              const c = RC[r.type]||RC.COVENANT;
+              return (<div key={r.id} className="rule-card" style={{borderLeftColor:c.b}}>
+                <div className="rule-head">
+                  <span className="badge" style={{background:c.bg,color:c.fg}}>{r.id}</span>
+                  <span className="badge" style={{background:c.bg,color:c.fg}}>{r.type}</span>
+                  <span style={{fontSize:10,color:"var(--muted)"}}>{r.party} &rarr; {r.counterparty}</span>
+                </div>
+                <div style={{fontSize:12,fontWeight:600}}>{r.action}</div>
+                {r.description && <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>{r.description}</div>}
+                {(r.effects||[]).map((e,i) => e.payment_formula && <div key={i} style={{fontSize:10,color:"var(--amber)",marginTop:3,fontFamily:mono}}>Formula: {e.payment_formula}{e.cap?` (cap: $${e.cap})`:""}</div>)}
+              </div>);
+            })}
+          </div>}
+
+          {/* English tab */}
+          {tab === "english" && <div className="card">
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+              <span className="badge" style={{background:"var(--green-bg)",color:"var(--green)"}}>DETERMINISTIC</span>
+              <span style={{fontSize:10,color:"var(--muted)",fontFamily:mono}}>Template &middot; No LLM &middot; Diff-safe</span>
+            </div>
+            <pre className="english-pre mono">{english}</pre>
+          </div>}
+
+          {/* ── Q&A Section ── */}
+          <div className="card qa-section">
+            <h2>Ask About Contracts</h2>
+            <textarea className="qa-input" value={question} onChange={e=>setQuestion(e.target.value)}
+              onKeyDown={e=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey))handleAsk();}}
+              placeholder="Ask a question about the loaded contracts and their FSMs..." />
+            <div className="qa-row">
+              <button className="btn btn-g" onClick={handleAsk} disabled={qaStreaming||!question.trim()}>
+                {qaStreaming ? <><span className="spinner" style={{width:12,height:12,borderWidth:1.5,marginRight:6}}></span>Running…</> : "Ask"}
+              </button>
+              {qaStreaming && <span className="qa-elapsed mono">{qaElapsed}s</span>}
+            </div>
+
+            {/* Stage 1: GBrain */}
+            {(qaStage || gbrainText) && (
+              <div className={`qa-stage visible`}>
+                <div className="qa-stage-hdr s1">
+                  <span>STAGE 1: HYPOTHESIS GENERATION</span>
+                  <div className="qa-status">
+                    <span className={`dot ${s1Done?"done":"running"}`}></span>
+                    {s1Done ? "Complete" : "Generating…"}
+                  </div>
+                </div>
+                <div className="qa-stage-body mono">
+                  {gbrainText || "Initializing…"}
+                  {!s1Done && <span className="qa-cursor"></span>}
+                </div>
               </div>
             )}
 
-            {tab === "english" && (
-              <div className="card">
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                  <span className="rule-badge" style={{ background: "var(--green-bg)", color: "var(--green)" }}>DETERMINISTIC</span>
-                  <span style={{ fontSize: 11, color: "var(--muted)", fontFamily: mono }}>Template-based &middot; No LLM &middot; Diff-safe</span>
+            {/* Stage 2: Validation */}
+            {(qaStage === "stage2" || qaStage === "done" || validationText) && (
+              <div className={`qa-stage${s1Done?" visible":""}`}>
+                <div className="qa-stage-hdr s2">
+                  <span>STAGE 2: FSM CROSS-VALIDATION</span>
+                  <div className="qa-status">
+                    <span className={`dot ${s2Done?"done":"running"}`}></span>
+                    {s2Done ? "Complete" : "Validating…"}
+                  </div>
                 </div>
-                <pre className="english-pre mono">{english}</pre>
+                <div className="qa-stage-body">
+                  {validationText || "Waiting for hypotheses…"}
+                  {!s2Done && validationText && <span className="qa-cursor"></span>}
+                </div>
               </div>
             )}
-          </>
-        )}
+          </div>
+        </>)}
       </div>
     </div>
   </>);
