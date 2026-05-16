@@ -1,0 +1,1376 @@
+---
+type: contract-fsm
+title: "Maria's Bakery - C LEASE contract"
+tags: [marias-bakery, contract-fsm, executable-contract, fsm]
+contract_id: C_LEASE_contract
+source_file: output/C_LEASE_contract/fsm.json
+---
+
+# Maria's Bakery - C LEASE contract
+
+This page ingests the finite state machine JSON for `C_LEASE_contract`. The app uses this as contract-grounded retrieval context, then verifies proposed scenarios by replaying events through the FSM.
+
+## Contract Facts
+
+- Parties: Old Mill Properties LLC, Maria's Bakery LLC
+- Initial state: `ACTIVE`
+- State count: 6
+- Transition count: 12
+- Amounts: {"monthly_base_rent": "6200.00", "violation_fee_per_occurrence": "350.00"}
+- Thresholds: {}
+
+## States
+
+| State | Terminal | Description |
+|---|---:|---|
+| `ACTIVE` | False | Lease is active, tenant complying with all obligations |
+| `VIOLATION_DETECTED` | False | Tenant violated loading, parking, or obstruction rules; violation fee assessed |
+| `IN_CURE` | False | Landlord issued written notice; tenant has 10 days to cure violation |
+| `CURED` | False | Tenant successfully cured violation within cure period |
+| `DEFAULT` | False | Tenant failed to cure within 10 days or committed material breach; default remedies available |
+| `TERMINATED` | True | Lease terminated due to uncured default |
+
+## Transitions
+
+| Transition | Event | From | To | Guard | Effects |
+|---|---|---|---|---|---|
+| TR1 | `rent_payment_made` | `ACTIVE` | `ACTIVE` |  | PAYMENT: Monthly base rent payment on first day of month |
+| TR2 | `loading_outside_window` | `ACTIVE`, `VIOLATION_DETECTED`, `CURED` | `VIOLATION_DETECTED` |  | PAYMENT: Violation fee for loading outside permitted 6am-8am window |
+| TR3 | `obstruction_occurred` | `ACTIVE`, `VIOLATION_DETECTED`, `CURED` | `VIOLATION_DETECTED` |  | PAYMENT: Violation fee for blocking service lane, common areas, driveways, sidewalks, fire lanes, trash areas, or other tenants' access |
+| TR4 | `unauthorized_refrigerated_vehicle` | `ACTIVE`, `VIOLATION_DETECTED`, `CURED` | `VIOLATION_DETECTED` |  | PAYMENT: Violation fee for parking, idling, charging, connecting to power, or operating refrigerated vehicle without consent |
+| TR5 | `cure_notice_issued` | `VIOLATION_DETECTED` | `IN_CURE` |  | CURE_WINDOW: Landlord issues written notice; tenant has 10 days to cure violation |
+| TR6 | `violation_cured` | `IN_CURE` | `CURED` | `cure_within_period == true` |  |
+| TR7 | `cure_period_expired` | `IN_CURE` | `DEFAULT` | `cure_within_period == false` |  |
+| TR8 | `return_to_compliance` | `CURED` | `ACTIVE` |  |  |
+| TR9 | `prohibited_use_violation` | `ACTIVE`, `VIOLATION_DETECTED`, `CURED` | `DEFAULT` |  | FORFEITURE: Tenant forfeits right to use premises for prohibited warehouse/commissary/distribution depot conversion |
+| TR10 | `lease_terminated` | `DEFAULT` | `TERMINATED` |  | FORFEITURE: Tenant forfeits all rights to premises and lease is terminated |
+| TR11 | `additional_rent_payment` | `ACTIVE`, `VIOLATION_DETECTED`, `IN_CURE`, `CURED`, `DEFAULT` | `ACTIVE` |  | PAYMENT: Additional rent charges as they become payable |
+| TR12 | `indemnification_claim` | `ACTIVE`, `VIOLATION_DETECTED`, `IN_CURE`, `CURED`, `DEFAULT` | `ACTIVE` |  | PAYMENT: Tenant indemnifies landlord for claims, losses, fines, property damage, personal injury, or increased insurance costs from loading or vehicle activity |
+
+## Original Contract Text
+
+```text
+RETAIL LEASE AND LOADING ADDENDUM
+
+This Retail Lease and Loading Addendum (this "Addendum") is entered into as
+of December 15, 2026, by and between Old Mill Properties LLC, a California
+limited liability company ("Landlord"), and Maria's Bakery LLC, a California
+limited liability company ("Tenant").
+
+RECITALS
+
+A. Landlord and Tenant are parties to that certain Retail Lease for the
+premises known as Suite 104, 18 Garden Street, Mill Valley, California (the
+"Premises").
+
+B. Tenant operates a neighborhood bakery from the Premises and has requested
+clarification of its right to conduct limited wholesale packing, morning
+loading, and refrigerated vehicle activity in connection with its bakery
+business.
+
+C. The parties desire to amend and supplement the Lease on the terms below.
+
+1. PREMISES; PERMITTED USE
+
+1.1 Permitted Use. Tenant may use the Premises for retail bakery sales,
+preparation of baked goods, customer pickup orders, incidental wholesale
+packing, and office activities related to the bakery business.
+
+1.2 Distribution Limitation. Tenant shall not convert the Premises into a
+warehouse, commissary, or distribution depot. Wholesale packing is permitted
+only if it remains incidental to Tenant's bakery business and does not
+materially increase noise, odors, waste, traffic, utility use, or loading
+activity beyond the level reasonably expected for a retail bakery.
+
+1.3 Change in Use. Any change in use requires Landlord's prior written
+consent. Landlord may condition consent on reasonable operational safeguards,
+including proof of insurance, traffic controls, or limits on vehicle idling.
+
+2. RENT AND ADDITIONAL RENT
+
+2.1 Base Rent. Tenant shall continue to pay monthly base rent of $6,200.00
+on the first day of each calendar month.
+
+2.2 Additional Rent. Any charge, reimbursement, fee, or other amount payable
+by Tenant under this Addendum constitutes additional rent under the Lease.
+
+2.3 No Invoice Required. Tenant's obligation to pay rent and additional rent
+is not conditioned on receipt of an invoice.
+
+3. LOADING RIGHTS
+
+3.1 Service Lane. Tenant may use the rear service lane solely for loading
+and unloading bakery products, ingredients, packaging, and related supplies.
+
+3.2 Loading Window. Unless Landlord gives prior written approval for a
+different window, Tenant's loading activity shall occur only between 6:00 a.m.
+and 8:00 a.m. on business days.
+
+3.3 No Obstruction. Tenant shall not block the service lane, common areas,
+driveways, sidewalks, fire lanes, trash areas, or other tenants' access.
+
+3.4 Compliance. Tenant shall comply with all reasonable building rules,
+municipal requirements, insurance requirements, and safety directions
+applicable to loading activity.
+
+4. REFRIGERATED VEHICLE PARKING
+
+4.1 Consent Required. Tenant shall not park, idle, charge, connect to power,
+or operate a refrigerated vehicle at the Premises overnight without Landlord's
+prior written consent.
+
+4.2 Consent Request. A request for refrigerated vehicle consent must identify
+the vehicle, license plate, refrigeration unit, expected hours of use, parking
+location, insurance coverage, cargo endorsement, noise rating, and any power
+requirements.
+
+4.3 Conditions. Landlord may require Tenant to use a designated parking
+space, prohibit engine idling, require drip protection, require proof of
+insurance, or impose other reasonable conditions to protect the property and
+other occupants.
+
+4.4 No Separate Parking Estate. Any parking or loading right under this
+Addendum is appurtenant to Tenant's occupancy of the Premises and has no
+separate value independent of the Lease.
+
+5. VIOLATION FEE; CURE
+
+5.1 Unauthorized Activity. If Tenant loads outside the permitted loading
+window, obstructs common areas, or parks or operates a refrigerated vehicle
+without required consent, Tenant shall pay a violation fee of $350.00 per
+occurrence.
+
+5.2 Cure Period. Tenant shall have ten days after written notice to cure an
+unauthorized loading or parking violation. Cure may require removal of the
+vehicle, cessation of the unauthorized activity, provision of insurance
+evidence, or submission of a complete consent request.
+
+5.3 Event of Default. Failure to cure within the ten-day cure period is an
+event of default under the Lease.
+
+6. INSURANCE; INDEMNITY
+
+6.1 Insurance. Before using any refrigerated vehicle in connection with the
+Premises, Tenant shall maintain commercial auto liability coverage and cargo
+or spoilage coverage reasonably acceptable to Landlord.
+
+6.2 Indemnity. Tenant shall indemnify and hold Landlord harmless from claims,
+losses, fines, property damage, personal injury, or increased insurance costs
+arising from Tenant's loading operations or refrigerated vehicle activity,
+except to the extent caused by Landlord's gross negligence or willful
+misconduct.
+
+7. REMEDIES
+
+7.1 Remedies. Upon an uncured default, Landlord may suspend loading access,
+revoke refrigerated vehicle consent, remove unauthorized vehicles as permitted
+by law, seek injunctive relief, or exercise any remedy available under the
+Lease.
+
+7.2 No Waiver. Acceptance of rent or delay in enforcement does not waive
+Landlord's rights.
+
+8. MISCELLANEOUS
+
+8.1 Lease Controls. Except as expressly modified by this Addendum, the Lease
+remains in full force and effect.
+
+8.2 Counterparts; Electronic Signatures. This Addendum may be signed in
+counterparts and by electronic signature.
+
+8.3 No Tax Advice. Landlord makes no representation regarding Tenant's tax
+treatment of equipment, vehicles, delivery routes, or business expenses.
+
+LANDLORD:
+Old Mill Properties LLC
+
+TENANT:
+Maria's Bakery LLC
+```
+
+## Raw FSM JSON
+
+```json
+{
+  "contract_id": "C_LEASE_contract",
+  "parties": [
+    "Old Mill Properties LLC",
+    "Maria's Bakery LLC"
+  ],
+  "initial_state": "ACTIVE",
+  "params": {
+    "parties": [
+      "Old Mill Properties LLC",
+      "Maria's Bakery LLC"
+    ],
+    "base_dates": {
+      "effective_date": "2026-12-15"
+    },
+    "amounts": {
+      "monthly_base_rent": "6200.00",
+      "violation_fee_per_occurrence": "350.00"
+    },
+    "rates": {},
+    "durations": {
+      "loading_window_start": "6:00 a.m.",
+      "loading_window_end": "8:00 a.m.",
+      "cure_period_days": 10
+    },
+    "thresholds": {}
+  },
+  "states": [
+    {
+      "id": "ACTIVE",
+      "description": "Lease is active, tenant complying with all obligations",
+      "terminal": false,
+      "active_rule_ids": [
+        "R2",
+        "R3",
+        "R4",
+        "R6",
+        "R7",
+        "R10",
+        "R12",
+        "R13",
+        "R14",
+        "R16",
+        "R25",
+        "R26"
+      ]
+    },
+    {
+      "id": "VIOLATION_DETECTED",
+      "description": "Tenant violated loading, parking, or obstruction rules; violation fee assessed",
+      "terminal": false,
+      "active_rule_ids": [
+        "R2",
+        "R3",
+        "R4",
+        "R6",
+        "R7",
+        "R10",
+        "R12",
+        "R13",
+        "R14",
+        "R16",
+        "R23",
+        "R25",
+        "R26"
+      ]
+    },
+    {
+      "id": "IN_CURE",
+      "description": "Landlord issued written notice; tenant has 10 days to cure violation",
+      "terminal": false,
+      "active_rule_ids": [
+        "R2",
+        "R3",
+        "R4",
+        "R6",
+        "R7",
+        "R10",
+        "R12",
+        "R13",
+        "R14",
+        "R16",
+        "R23",
+        "R25",
+        "R26"
+      ]
+    },
+    {
+      "id": "CURED",
+      "description": "Tenant successfully cured violation within cure period",
+      "terminal": false,
+      "active_rule_ids": [
+        "R2",
+        "R3",
+        "R4",
+        "R6",
+        "R7",
+        "R10",
+        "R12",
+        "R13",
+        "R14",
+        "R16",
+        "R25",
+        "R26"
+      ]
+    },
+    {
+      "id": "DEFAULT",
+      "description": "Tenant failed to cure within 10 days or committed material breach; default remedies available",
+      "terminal": false,
+      "active_rule_ids": [
+        "R6",
+        "R7",
+        "R26"
+      ]
+    },
+    {
+      "id": "TERMINATED",
+      "description": "Lease terminated due to uncured default",
+      "terminal": true,
+      "active_rule_ids": []
+    }
+  ],
+  "transitions": [
+    {
+      "id": "TR1",
+      "from_states": [
+        "ACTIVE"
+      ],
+      "to_state": "ACTIVE",
+      "event_type": "rent_payment_made",
+      "guard": null,
+      "effects": [
+        {
+          "id": "E1",
+          "type": "PAYMENT",
+          "payment_formula": "monthly_base_rent",
+          "payment_from": "Tenant",
+          "payment_to": "Landlord",
+          "cap": null,
+          "description": "Monthly base rent payment on first day of month"
+        }
+      ],
+      "description": "Tenant pays monthly base rent"
+    },
+    {
+      "id": "TR2",
+      "from_states": [
+        "ACTIVE",
+        "VIOLATION_DETECTED",
+        "CURED"
+      ],
+      "to_state": "VIOLATION_DETECTED",
+      "event_type": "loading_outside_window",
+      "guard": null,
+      "effects": [
+        {
+          "id": "E1",
+          "type": "PAYMENT",
+          "payment_formula": "violation_fee_per_occurrence",
+          "payment_from": "Tenant",
+          "payment_to": "Landlord",
+          "cap": null,
+          "description": "Violation fee for loading outside permitted 6am-8am window"
+        }
+      ],
+      "description": "Tenant loads outside permitted window without approval"
+    },
+    {
+      "id": "TR3",
+      "from_states": [
+        "ACTIVE",
+        "VIOLATION_DETECTED",
+        "CURED"
+      ],
+      "to_state": "VIOLATION_DETECTED",
+      "event_type": "obstruction_occurred",
+      "guard": null,
+      "effects": [
+        {
+          "id": "E1",
+          "type": "PAYMENT",
+          "payment_formula": "violation_fee_per_occurrence",
+          "payment_from": "Tenant",
+          "payment_to": "Landlord",
+          "cap": null,
+          "description": "Violation fee for blocking service lane, common areas, driveways, sidewalks, fire lanes, trash areas, or other tenants' access"
+        }
+      ],
+      "description": "Tenant blocks service lane or common areas"
+    },
+    {
+      "id": "TR4",
+      "from_states": [
+        "ACTIVE",
+        "VIOLATION_DETECTED",
+        "CURED"
+      ],
+      "to_state": "VIOLATION_DETECTED",
+      "event_type": "unauthorized_refrigerated_vehicle",
+      "guard": null,
+      "effects": [
+        {
+          "id": "E1",
+          "type": "PAYMENT",
+          "payment_formula": "violation_fee_per_occurrence",
+          "payment_from": "Tenant",
+          "payment_to": "Landlord",
+          "cap": null,
+          "description": "Violation fee for parking, idling, charging, connecting to power, or operating refrigerated vehicle without consent"
+        }
+      ],
+      "description": "Tenant uses refrigerated vehicle without landlord consent"
+    },
+    {
+      "id": "TR5",
+      "from_states": [
+        "VIOLATION_DETECTED"
+      ],
+      "to_state": "IN_CURE",
+      "event_type": "cure_notice_issued",
+      "guard": null,
+      "effects": [
+        {
+          "id": "E1",
+          "type": "CURE_WINDOW",
+          "duration_days": 10,
+          "description": "Landlord issues written notice; tenant has 10 days to cure violation"
+        }
+      ],
+      "description": "Landlord provides written notice of violation triggering cure period"
+    },
+    {
+      "id": "TR6",
+      "from_states": [
+        "IN_CURE"
+      ],
+      "to_state": "CURED",
+      "event_type": "violation_cured",
+      "guard": "cure_within_period == true",
+      "effects": [],
+      "description": "Tenant successfully cures violation within 10-day cure period"
+    },
+    {
+      "id": "TR7",
+      "from_states": [
+        "IN_CURE"
+      ],
+      "to_state": "DEFAULT",
+      "event_type": "cure_period_expired",
+      "guard": "cure_within_period == false",
+      "effects": [],
+      "description": "Tenant fails to cure violation within 10-day cure period"
+    },
+    {
+      "id": "TR8",
+      "from_states": [
+        "CURED"
+      ],
+      "to_state": "ACTIVE",
+      "event_type": "return_to_compliance",
+      "guard": null,
+      "effects": [],
+      "description": "Tenant returns to full compliance after curing violation"
+    },
+    {
+      "id": "TR9",
+      "from_states": [
+        "ACTIVE",
+        "VIOLATION_DETECTED",
+        "CURED"
+      ],
+      "to_state": "DEFAULT",
+      "event_type": "prohibited_use_violation",
+      "guard": null,
+      "effects": [
+        {
+          "id": "E1",
+          "type": "FORFEITURE",
+          "description": "Tenant forfeits right to use premises for prohibited warehouse/commissary/distribution depot conversion"
+        }
+      ],
+      "description": "Tenant converts premises to warehouse, commissary, or distribution depot triggering default"
+    },
+    {
+      "id": "TR10",
+      "from_states": [
+        "DEFAULT"
+      ],
+      "to_state": "TERMINATED",
+      "event_type": "lease_terminated",
+      "guard": null,
+      "effects": [
+        {
+          "id": "E1",
+          "type": "FORFEITURE",
+          "description": "Tenant forfeits all rights to premises and lease is terminated"
+        }
+      ],
+      "description": "Landlord exercises default remedies and terminates lease"
+    },
+    {
+      "id": "TR11",
+      "from_states": [
+        "ACTIVE",
+        "VIOLATION_DETECTED",
+        "IN_CURE",
+        "CURED",
+        "DEFAULT"
+      ],
+      "to_state": "ACTIVE",
+      "event_type": "additional_rent_payment",
+      "guard": null,
+      "effects": [
+        {
+          "id": "E1",
+          "type": "PAYMENT",
+          "payment_formula": "applicable_charge_amount",
+          "payment_from": "Tenant",
+          "payment_to": "Landlord",
+          "cap": null,
+          "description": "Additional rent charges as they become payable"
+        }
+      ],
+      "description": "Tenant pays additional rent charges when due"
+    },
+    {
+      "id": "TR12",
+      "from_states": [
+        "ACTIVE",
+        "VIOLATION_DETECTED",
+        "IN_CURE",
+        "CURED",
+        "DEFAULT"
+      ],
+      "to_state": "ACTIVE",
+      "event_type": "indemnification_claim",
+      "guard": null,
+      "effects": [
+        {
+          "id": "E1",
+          "type": "PAYMENT",
+          "payment_formula": "actual_damages",
+          "payment_from": "Tenant",
+          "payment_to": "Landlord",
+          "cap": null,
+          "description": "Tenant indemnifies landlord for claims, losses, fines, property damage, personal injury, or increased insurance costs from loading or vehicle activity"
+        }
+      ],
+      "description": "Tenant indemnifies landlord for damages arising from loading or vehicle operations"
+    }
+  ],
+  "rules": [
+    {
+      "id": "R2",
+      "type": "PROHIBITION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Convert premises to warehouse/commissary/distribution depot",
+      "activation": "INACTIVE",
+      "description": "Tenant shall not convert the Premises into a warehouse, commissary, or distribution depot.",
+      "mappable": true,
+      "unmappable_reason": null,
+      "triggers": [],
+      "effects": [
+        {
+          "id": "E2a",
+          "type": "RULE_ACTIVATION",
+          "description": "Violation triggers default remedies",
+          "target_rule_id": "R31",
+          "new_state": "DEFAULT"
+        }
+      ],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R3",
+      "type": "OBLIGATION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Ensure wholesale packing remains incidental",
+      "activation": "INACTIVE",
+      "description": "Tenant must ensure wholesale packing remains incidental to bakery business and does not materially increase noise, odors, waste, traffic, utility use, or loading activity beyond retail bakery level.",
+      "mappable": true,
+      "unmappable_reason": null,
+      "triggers": [],
+      "effects": [],
+      "constraints": [
+        {
+          "id": "C3a",
+          "type": "CONTROLLING_ITEM",
+          "scope": [
+            "R3"
+          ],
+          "description": "Wholesale activity must remain incidental and not materially increase impacts"
+        }
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "R4",
+      "type": "OBLIGATION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Obtain consent for change in use",
+      "activation": "INACTIVE",
+      "description": "Any change in use requires Landlord's prior written consent.",
+      "mappable": true,
+      "unmappable_reason": null,
+      "triggers": [
+        {
+          "id": "T4a",
+          "type": "EVENT_TRIGGER",
+          "condition": "Tenant desires to change use of Premises"
+        }
+      ],
+      "effects": [],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R6",
+      "type": "OBLIGATION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Pay monthly base rent",
+      "activation": "INACTIVE",
+      "description": "Tenant shall continue to pay monthly base rent of $6,200.00 on the first day of each calendar month.",
+      "mappable": true,
+      "unmappable_reason": null,
+      "triggers": [
+        {
+          "id": "T6a",
+          "type": "DATE_TRIGGER",
+          "condition": "First day of each calendar month",
+          "reference_date": "effective_date",
+          "duration": "1 month",
+          "duration_days": 30
+        }
+      ],
+      "effects": [
+        {
+          "id": "E6a",
+          "type": "PAYMENT",
+          "description": "Monthly base rent payment",
+          "payment_formula": "6200.00",
+          "payment_from": "Tenant",
+          "payment_to": "Landlord"
+        }
+      ],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R7",
+      "type": "OBLIGATION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Pay additional rent charges",
+      "activation": "INACTIVE",
+      "description": "Any charge, reimbursement, fee, or other amount payable by Tenant under this Addendum constitutes additional rent under the Lease.",
+      "mappable": true,
+      "unmappable_reason": null,
+      "triggers": [
+        {
+          "id": "T7a",
+          "type": "EVENT_TRIGGER",
+          "condition": "Any charge becomes payable under this Addendum"
+        }
+      ],
+      "effects": [
+        {
+          "id": "E7a",
+          "type": "PAYMENT",
+          "description": "Additional rent payment",
+          "payment_formula": "applicable_charge_amount",
+          "payment_from": "Tenant",
+          "payment_to": "Landlord"
+        }
+      ],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R10",
+      "type": "OBLIGATION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Loading only during permitted window",
+      "activation": "INACTIVE",
+      "description": "Unless Landlord gives prior written approval for a different window, Tenant's loading activity shall occur only between 6:00 a.m. and 8:00 a.m. on business days.",
+      "mappable": true,
+      "unmappable_reason": null,
+      "triggers": [],
+      "effects": [],
+      "constraints": [
+        {
+          "id": "C10a",
+          "type": "CONTROLLING_ITEM",
+          "duration": "6:00 a.m. to 8:00 a.m.",
+          "scope": [
+            "R10"
+          ],
+          "description": "Loading window restricted to 6:00 a.m. to 8:00 a.m. on business days"
+        }
+      ],
+      "exceptions": [
+        "R11"
+      ]
+    },
+    {
+      "id": "R12",
+      "type": "PROHIBITION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Block service lane or common areas",
+      "activation": "INACTIVE",
+      "description": "Tenant shall not block the service lane, common areas, driveways, sidewalks, fire lanes, trash areas, or other tenants' access.",
+      "mappable": true,
+      "unmappable_reason": null,
+      "triggers": [],
+      "effects": [
+        {
+          "id": "E12a",
+          "type": "PAYMENT",
+          "description": "Violation fee for obstruction",
+          "target_rule_id": "R22",
+          "payment_formula": "350.00",
+          "payment_from": "Tenant",
+          "payment_to": "Landlord"
+        }
+      ],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R13",
+      "type": "OBLIGATION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Comply with loading requirements",
+      "activation": "INACTIVE",
+      "description": "Tenant shall comply with all reasonable building rules, municipal requirements, insurance requirements, and safety directions applicable to loading activity.",
+      "mappable": true,
+      "unmappable_reason": null,
+      "triggers": [],
+      "effects": [],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R14",
+      "type": "PROHIBITION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Park/operate refrigerated vehicle without consent",
+      "activation": "INACTIVE",
+      "description": "Tenant shall not park, idle, charge, connect to power, or operate a refrigerated vehicle at the Premises overnight without Landlord's prior written consent.",
+      "mappable": true,
+      "unmappable_reason": null,
+      "triggers": [],
+      "effects": [
+        {
+          "id": "E14a",
+          "type": "PAYMENT",
+          "description": "Violation fee for unauthorized refrigerated vehicle",
+          "target_rule_id": "R22",
+          "payment_formula": "350.00",
+          "payment_from": "Tenant",
+          "payment_to": "Landlord"
+        }
+      ],
+      "constraints": [],
+      "exceptions": [
+        "R15"
+      ]
+    },
+    {
+      "id": "R16",
+      "type": "OBLIGATION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Provide required information in consent request",
+      "activation": "INACTIVE",
+      "description": "A request for refrigerated vehicle consent must identify the vehicle, license plate, refrigeration unit, expected hours of use, parking location, insurance coverage, cargo endorsement, noise rating, and any power requirements.",
+      "mappable": true,
+      "unmappable_reason": null,
+      "triggers": [
+        {
+          "id": "T16a",
+          "type": "EVENT_TRIGGER",
+          "condition": "Tenant seeks refrigerated vehicle consent"
+        }
+      ],
+      "effects": [],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R19",
+      "type": "OBLIGATION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Pay violation fee for loading outside window",
+      "activation": "INACTIVE",
+      "description": "If Tenant loads outside the permitted loading window, Tenant shall pay a violation fee of $350.00 per occurrence.",
+      "mappable": true,
+      "unmappable_reason": null,
+      "triggers": [
+        {
+          "id": "T19a",
+          "type": "EVENT_TRIGGER",
+          "condition": "Tenant loads outside permitted window without approval"
+        }
+      ],
+      "effects": [
+        {
+          "id": "E19a",
+          "type": "PAYMENT",
+          "description": "Violation fee per occurrence",
+          "payment_formula": "350.00",
+          "payment_from": "Tenant",
+          "payment_to": "Landlord"
+        }
+      ],
+      "constraints": [],
+      "exceptions": [
+        "R11"
+      ]
+    },
+    {
+      "id": "R20",
+      "type": "OBLIGATION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Pay violation fee for obstruction",
+      "activation": "INACTIVE",
+      "description": "If Tenant obstructs common areas, Tenant shall pay a violation fee of $350.00 per occurrence.",
+      "mappable": true,
+      "unmappable_reason": null,
+      "triggers": [
+        {
+          "id": "T20a",
+          "type": "EVENT_TRIGGER",
+          "condition": "Tenant blocks service lane, common areas, driveways, sidewalks, fire lanes, trash areas, or other tenants' access"
+        }
+      ],
+      "effects": [
+        {
+          "id": "E20a",
+          "type": "PAYMENT",
+          "description": "Violation fee per occurrence",
+          "payment_formula": "350.00",
+          "payment_from": "Tenant",
+          "payment_to": "Landlord"
+        }
+      ],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R21",
+      "type": "OBLIGATION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Pay violation fee for unauthorized refrigerated vehicle",
+      "activation": "INACTIVE",
+      "description": "If Tenant parks or operates a refrigerated vehicle without required consent, Tenant shall pay a violation fee of $350.00 per occurrence.",
+      "mappable": true,
+      "unmappable_reason": null,
+      "triggers": [
+        {
+          "id": "T21a",
+          "type": "EVENT_TRIGGER",
+          "condition": "Tenant parks, idles, charges, connects to power, or operates refrigerated vehicle without consent"
+        }
+      ],
+      "effects": [
+        {
+          "id": "E21a",
+          "type": "PAYMENT",
+          "description": "Violation fee per occurrence",
+          "payment_formula": "350.00",
+          "payment_from": "Tenant",
+          "payment_to": "Landlord"
+        }
+      ],
+      "constraints": [],
+      "exceptions": [
+        "R15"
+      ]
+    },
+    {
+      "id": "R23",
+      "type": "OBLIGATION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Cure unauthorized loading or parking violation",
+      "activation": "INACTIVE",
+      "description": "Tenant shall have ten days after written notice to cure an unauthorized loading or parking violation. Cure may require removal of the vehicle, cessation of the unauthorized activity, provision of insurance evidence, or submission of a complete consent request.",
+      "mappable": true,
+      "unmappable_reason": null,
+      "triggers": [
+        {
+          "id": "T23a",
+          "type": "NOTICE_TRIGGER",
+          "condition": "Landlord provides written notice of violation",
+          "reference_date": "notice_date",
+          "duration": "10 days",
+          "duration_days": 10
+        }
+      ],
+      "effects": [
+        {
+          "id": "E23a",
+          "type": "CURE_WINDOW",
+          "description": "Tenant must cure violation within 10 days",
+          "new_state": "CURED"
+        }
+      ],
+      "constraints": [
+        {
+          "id": "C23a",
+          "type": "GRACE_PERIOD",
+          "duration": "10 days",
+          "duration_days": 10,
+          "scope": [
+            "R23"
+          ],
+          "description": "Ten-day cure period after written notice"
+        }
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "R25",
+      "type": "OBLIGATION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Maintain insurance for refrigerated vehicle",
+      "activation": "INACTIVE",
+      "description": "Before using any refrigerated vehicle in connection with the Premises, Tenant shall maintain commercial auto liability coverage and cargo or spoilage coverage reasonably acceptable to Landlord.",
+      "mappable": true,
+      "unmappable_reason": null,
+      "triggers": [
+        {
+          "id": "T25a",
+          "type": "CONDITION_PRECEDENT",
+          "condition": "Before using refrigerated vehicle"
+        }
+      ],
+      "effects": [],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R26",
+      "type": "OBLIGATION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Indemnify Landlord for loading/vehicle claims",
+      "activation": "INACTIVE",
+      "description": "Tenant shall indemnify and hold Landlord harmless from claims, losses, fines, property damage, personal injury, or increased insurance costs arising from Tenant's loading operations or refrigerated vehicle activity, except to the extent caused by Landlord's gross negligence or willful misconduct.",
+      "mappable": true,
+      "unmappable_reason": null,
+      "triggers": [
+        {
+          "id": "T26a",
+          "type": "EVENT_TRIGGER",
+          "condition": "Claims, losses, fines, property damage, personal injury, or increased insurance costs arise from Tenant's loading or vehicle activity"
+        }
+      ],
+      "effects": [
+        {
+          "id": "E26a",
+          "type": "PAYMENT",
+          "description": "Indemnification payment to Landlord",
+          "payment_formula": "actual_damages",
+          "payment_from": "Tenant",
+          "payment_to": "Landlord"
+        }
+      ],
+      "constraints": [
+        {
+          "id": "C26a",
+          "type": "CARVE_OUT",
+          "scope": [
+            "R26"
+          ],
+          "description": "Indemnity does not apply to extent caused by Landlord's gross negligence or willful misconduct"
+        }
+      ],
+      "exceptions": []
+    }
+  ],
+  "unmappable_rules": [
+    {
+      "id": "R1",
+      "type": "PERMISSION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Use premises for specified bakery activities",
+      "activation": "INACTIVE",
+      "description": "Tenant may use the Premises for retail bakery sales, preparation of baked goods, customer pickup orders, incidental wholesale packing, and office activities related to the bakery business.",
+      "mappable": false,
+      "unmappable_reason": "PERMISSION is not in the four mappable primitives",
+      "triggers": [],
+      "effects": [],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R5",
+      "type": "POWER",
+      "party": "Landlord",
+      "counterparty": "Tenant",
+      "action": "Condition change-in-use consent on safeguards",
+      "activation": "INACTIVE",
+      "description": "Landlord may condition consent on reasonable operational safeguards, including proof of insurance, traffic controls, or limits on vehicle idling.",
+      "mappable": false,
+      "unmappable_reason": "POWER is not in the four mappable primitives",
+      "triggers": [
+        {
+          "id": "T5a",
+          "type": "EVENT_TRIGGER",
+          "condition": "Tenant requests change in use consent"
+        }
+      ],
+      "effects": [],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R8",
+      "type": "REPRESENTATION",
+      "party": "Landlord",
+      "counterparty": "Tenant",
+      "action": "No invoice required for rent payment",
+      "activation": "INACTIVE",
+      "description": "Tenant's obligation to pay rent and additional rent is not conditioned on receipt of an invoice.",
+      "mappable": false,
+      "unmappable_reason": "REPRESENTATION is not in the four mappable primitives",
+      "triggers": [],
+      "effects": [],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R9",
+      "type": "PERMISSION",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Use rear service lane for loading",
+      "activation": "INACTIVE",
+      "description": "Tenant may use the rear service lane solely for loading and unloading bakery products, ingredients, packaging, and related supplies.",
+      "mappable": false,
+      "unmappable_reason": "PERMISSION is not in the four mappable primitives",
+      "triggers": [],
+      "effects": [],
+      "constraints": [
+        {
+          "id": "C9a",
+          "type": "CONTROLLING_ITEM",
+          "scope": [
+            "R9"
+          ],
+          "description": "Use limited to bakery products, ingredients, packaging, and related supplies only"
+        }
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "R11",
+      "type": "POWER",
+      "party": "Landlord",
+      "counterparty": "Tenant",
+      "action": "Approve different loading window",
+      "activation": "INACTIVE",
+      "description": "Landlord may give prior written approval for a different loading window than 6:00 a.m. to 8:00 a.m.",
+      "mappable": false,
+      "unmappable_reason": "POWER is not in the four mappable primitives",
+      "triggers": [
+        {
+          "id": "T11a",
+          "type": "EVENT_TRIGGER",
+          "condition": "Tenant requests different loading window"
+        }
+      ],
+      "effects": [
+        {
+          "id": "E11a",
+          "type": "RULE_ACTIVATION",
+          "description": "Modified loading window becomes effective",
+          "target_rule_id": "R10"
+        }
+      ],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R15",
+      "type": "POWER",
+      "party": "Landlord",
+      "counterparty": "Tenant",
+      "action": "Grant consent for refrigerated vehicle",
+      "activation": "INACTIVE",
+      "description": "Landlord may grant or withhold consent for refrigerated vehicle operations.",
+      "mappable": false,
+      "unmappable_reason": "POWER is not in the four mappable primitives",
+      "triggers": [
+        {
+          "id": "T15a",
+          "type": "EVENT_TRIGGER",
+          "condition": "Tenant submits compliant consent request"
+        }
+      ],
+      "effects": [],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R17",
+      "type": "POWER",
+      "party": "Landlord",
+      "counterparty": "Tenant",
+      "action": "Impose conditions on refrigerated vehicle consent",
+      "activation": "INACTIVE",
+      "description": "Landlord may require Tenant to use a designated parking space, prohibit engine idling, require drip protection, require proof of insurance, or impose other reasonable conditions to protect the property and other occupants.",
+      "mappable": false,
+      "unmappable_reason": "POWER is not in the four mappable primitives",
+      "triggers": [
+        {
+          "id": "T17a",
+          "type": "EVENT_TRIGGER",
+          "condition": "Landlord grants refrigerated vehicle consent"
+        }
+      ],
+      "effects": [],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R18",
+      "type": "REPRESENTATION",
+      "party": "Landlord",
+      "counterparty": "Tenant",
+      "action": "Parking/loading right appurtenant to occupancy",
+      "activation": "INACTIVE",
+      "description": "Any parking or loading right under this Addendum is appurtenant to Tenant's occupancy of the Premises and has no separate value independent of the Lease.",
+      "mappable": false,
+      "unmappable_reason": "REPRESENTATION is not in the four mappable primitives",
+      "triggers": [],
+      "effects": [],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R22",
+      "type": "REPRESENTATION",
+      "party": "Landlord",
+      "counterparty": "Tenant",
+      "action": "Violation fee structure",
+      "activation": "INACTIVE",
+      "description": "Unauthorized activity violation fee of $350.00 per occurrence applies to loading outside window, obstruction, or unauthorized refrigerated vehicle operations.",
+      "mappable": false,
+      "unmappable_reason": "REPRESENTATION is not in the four mappable primitives",
+      "triggers": [],
+      "effects": [],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R24",
+      "type": "COVENANT",
+      "party": "Tenant",
+      "counterparty": "Landlord",
+      "action": "Event of default for failure to cure",
+      "activation": "INACTIVE",
+      "description": "Failure to cure within the ten-day cure period is an event of default under the Lease.",
+      "mappable": false,
+      "unmappable_reason": "COVENANT is not in the four mappable primitives",
+      "triggers": [
+        {
+          "id": "T24a",
+          "type": "TEMPORAL_TRIGGER",
+          "condition": "Ten days elapse after written notice without cure",
+          "reference_date": "notice_date",
+          "duration": "10 days",
+          "duration_days": 10
+        }
+      ],
+      "effects": [
+        {
+          "id": "E24a",
+          "type": "STATE_TRANSITION",
+          "description": "Violation becomes event of default under Lease",
+          "target_rule_id": "R31",
+          "new_state": "DEFAULT"
+        }
+      ],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R27",
+      "type": "POWER",
+      "party": "Landlord",
+      "counterparty": "Tenant",
+      "action": "Suspend loading access upon default",
+      "activation": "INACTIVE",
+      "description": "Upon an uncured default, Landlord may suspend loading access.",
+      "mappable": false,
+      "unmappable_reason": "POWER is not in the four mappable primitives",
+      "triggers": [
+        {
+          "id": "T27a",
+          "type": "EVENT_TRIGGER",
+          "condition": "Uncured default occurs"
+        }
+      ],
+      "effects": [
+        {
+          "id": "E27a",
+          "type": "RULE_ACTIVATION",
+          "description": "Loading access suspended",
+          "target_rule_id": "R9",
+          "new_state": "SUSPENDED"
+        }
+      ],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R28",
+      "type": "POWER",
+      "party": "Landlord",
+      "counterparty": "Tenant",
+      "action": "Revoke refrigerated vehicle consent upon default",
+      "activation": "INACTIVE",
+      "description": "Upon an uncured default, Landlord may revoke refrigerated vehicle consent.",
+      "mappable": false,
+      "unmappable_reason": "POWER is not in the four mappable primitives",
+      "triggers": [
+        {
+          "id": "T28a",
+          "type": "EVENT_TRIGGER",
+          "condition": "Uncured default occurs"
+        }
+      ],
+      "effects": [
+        {
+          "id": "E28a",
+          "type": "RULE_ACTIVATION",
+          "description": "Refrigerated vehicle consent revoked",
+          "target_rule_id": "R14",
+          "new_state": "CONSENT_REVOKED"
+        }
+      ],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R29",
+      "type": "POWER",
+      "party": "Landlord",
+      "counterparty": "Tenant",
+      "action": "Remove unauthorized vehicles upon default",
+      "activation": "INACTIVE",
+      "description": "Upon an uncured default, Landlord may remove unauthorized vehicles as permitted by law.",
+      "mappable": false,
+      "unmappable_reason": "POWER is not in the four mappable primitives",
+      "triggers": [
+        {
+          "id": "T29a",
+          "type": "EVENT_TRIGGER",
+          "condition": "Uncured default occurs"
+        }
+      ],
+      "effects": [
+        {
+          "id": "E29a",
+          "type": "ASSET_TRANSFER",
+          "description": "Unauthorized vehicles removed"
+        }
+      ],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R30",
+      "type": "POWER",
+      "party": "Landlord",
+      "counterparty": "Tenant",
+      "action": "Seek injunctive relief upon default",
+      "activation": "INACTIVE",
+      "description": "Upon an uncured default, Landlord may seek injunctive relief.",
+      "mappable": false,
+      "unmappable_reason": "POWER is not in the four mappable primitives",
+      "triggers": [
+        {
+          "id": "T30a",
+          "type": "EVENT_TRIGGER",
+          "condition": "Uncured default occurs"
+        }
+      ],
+      "effects": [],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R31",
+      "type": "POWER",
+      "party": "Landlord",
+      "counterparty": "Tenant",
+      "action": "Exercise remedies under Lease upon default",
+      "activation": "INACTIVE",
+      "description": "Upon an uncured default, Landlord may exercise any remedy available under the Lease.",
+      "mappable": false,
+      "unmappable_reason": "POWER is not in the four mappable primitives",
+      "triggers": [
+        {
+          "id": "T31a",
+          "type": "EVENT_TRIGGER",
+          "condition": "Uncured default occurs"
+        }
+      ],
+      "effects": [],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R32",
+      "type": "IMMUNITY",
+      "party": "Landlord",
+      "counterparty": "Tenant",
+      "action": "No waiver of rights by acceptance of rent or delay",
+      "activation": "INACTIVE",
+      "description": "Acceptance of rent or delay in enforcement does not waive Landlord's rights.",
+      "mappable": false,
+      "unmappable_reason": "IMMUNITY is not in the four mappable primitives",
+      "triggers": [],
+      "effects": [],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R33",
+      "type": "REPRESENTATION",
+      "party": "Landlord",
+      "counterparty": "Tenant",
+      "action": "Lease remains in effect except as modified",
+      "activation": "INACTIVE",
+      "description": "Except as expressly modified by this Addendum, the Lease remains in full force and effect.",
+      "mappable": false,
+      "unmappable_reason": "REPRESENTATION is not in the four mappable primitives",
+      "triggers": [],
+      "effects": [],
+      "constraints": [],
+      "exceptions": []
+    },
+    {
+      "id": "R34",
+      "type": "REPRESENTATION",
+      "party": "Landlord",
+      "counterparty": "Tenant",
+      "action": "No tax advice provided",
+      "activation": "INACTIVE",
+      "description": "Landlord makes no representation regarding Tenant's tax treatment of equipment, vehicles, delivery routes, or business expenses.",
+      "mappable": false,
+      "unmappable_reason": "REPRESENTATION is not in the four mappable primitives",
+      "triggers": [],
+      "effects": [],
+      "constraints": [],
+      "exceptions": []
+    }
+  ]
+}
+```
+
+---
+
+- 2026-05-16: Ingested from DDKT Maria's Bakery output JSON for scenario optimization and deterministic FSM verification.
