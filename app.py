@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import threading
 from datetime import date
 from decimal import Decimal
@@ -12,6 +11,12 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parent / ".env")
+except ImportError:
+    pass
 
 ROOT = Path(__file__).resolve().parent
 UI_PATH = ROOT / "ui.html"
@@ -90,68 +95,108 @@ def _fsm_to_dict(fsm) -> dict:
     }
 
 
-def _ask_llm(question: str, contracts: dict[str, dict]) -> str:
+def _gbrain_search(question: str, fsm_context: str = "") -> dict:
+    """Step 1: Generate candidate suggestions informed by both FSM context and broad knowledge."""
+    try:
+        import anthropic
+        client = anthropic.Anthropic()
+        fsm_section = f"\n\nContract FSM context:\n{fsm_context}" if fsm_context else ""
+        msg = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=512,
+            system=(
+                "You are a knowledgeable business and financial advisor with expertise in contracts. "
+                "You will be given a question and the relevant contract FSM data (states, transitions, rules). "
+                "Generate a numbered list of concrete, actionable suggestions informed by both "
+                "the contract structure and broader business/financial knowledge. "
+                "Your suggestions should be grounded in what the contract describes — "
+                "use the parties, amounts, states, and obligations as context for what options exist. "
+                "Do not filter for feasibility yet; a strict FSM validation step follows."
+            ),
+            messages=[{"role": "user", "content": f"Question: {question}{fsm_section}"}],
+        )
+        output = msg.content[0].text
+        return {"available": True, "output": output}
+    except ImportError:
+        return {"available": False, "output": "Anthropic SDK not available."}
+    except Exception as exc:
+        return {"available": False, "output": str(exc)}
+
+
+def _build_fsm_context(contracts: dict[str, dict]) -> str:
+    parts = []
+    for cid, fsm in contracts.items():
+        states = "\n".join(
+            f"  - {s['id']}: {s['description']}"
+            + (" (terminal)" if s.get("terminal") else "")
+            for s in fsm.get("states", [])
+        )
+        trans = "\n".join(
+            f"  - {t['id']}: {t['from_states']} on '{t['event_type']}' -> {t['to_state']}"
+            + (f" [guard: {t['guard']}]" if t.get("guard") else "")
+            for t in fsm.get("transitions", [])
+        )
+        rules = "\n".join(
+            f"  - {r['id']} [{r['type']}]: {r['action']}"
+            for r in fsm.get("rules", []) if r.get("mappable", True)
+        )
+        params = fsm.get("params", {})
+        amounts = ", ".join(f"{k}: ${v}" for k, v in (params.get("amounts") or {}).items())
+        parts.append(
+            f"Contract: {cid}\n"
+            f"Parties: {', '.join(fsm.get('parties', []))}\n"
+            f"Initial State: {fsm.get('initial_state')}\n"
+            f"Amounts: {amounts}\n\n"
+            f"States:\n{states}\n\n"
+            f"Transitions:\n{trans}\n\n"
+            f"Rules:\n{rules}"
+        )
+    return "\n\n---\n\n".join(parts)
+
+
+def _ask_llm(question: str, contracts: dict[str, dict], gbrain_suggestions: str = "") -> str:
+    """Step 2: Cross-reference GBrain suggestions against FSMs and return only feasible ones."""
     try:
         import anthropic
         client = anthropic.Anthropic()
 
-        parts = []
-        for cid, fsm in contracts.items():
-            states = "\n".join(
-                f"  - {s['id']}: {s['description']}"
-                + (" (terminal)" if s.get("terminal") else "")
-                for s in fsm.get("states", [])
-            )
-            trans = "\n".join(
-                f"  - {t['id']}: {t['from_states']} on '{t['event_type']}' -> {t['to_state']}"
-                + (f" [guard: {t['guard']}]" if t.get("guard") else "")
-                for t in fsm.get("transitions", [])
-            )
-            rules = "\n".join(
-                f"  - {r['id']} [{r['type']}]: {r['action']}"
-                for r in fsm.get("rules", []) if r.get("mappable", True)
-            )
-            params = fsm.get("params", {})
-            amounts = ", ".join(f"{k}: ${v}" for k, v in (params.get("amounts") or {}).items())
+        ctx = _build_fsm_context(contracts)
 
-            parts.append(
-                f"Contract: {cid}\n"
-                f"Parties: {', '.join(fsm.get('parties', []))}\n"
-                f"Initial State: {fsm.get('initial_state')}\n"
-                f"Amounts: {amounts}\n\n"
-                f"States:\n{states}\n\n"
-                f"Transitions:\n{trans}\n\n"
-                f"Rules:\n{rules}"
+        if gbrain_suggestions:
+            user_content = (
+                f"Contract FSMs:\n\n{ctx}\n\n"
+                f"---\n\n"
+                f"GBrain candidate suggestions for: \"{question}\"\n\n"
+                f"{gbrain_suggestions}\n\n"
+                f"---\n\n"
+                f"For each suggestion above, determine whether it is feasible given the contract FSMs. "
+                f"A suggestion is feasible only if the required states, transitions, and rules exist "
+                f"to support it playing out within the contract terms. "
+                f"For feasible suggestions, cite the specific FSM states/transitions/rules that enable it. "
+                f"For infeasible suggestions, explain which FSM constraint blocks it. "
+                f"End with a clear recommendation of which option(s) to pursue and why."
             )
+        else:
+            user_content = f"Contract FSMs:\n\n{ctx}\n\nQuestion: {question}"
 
-        ctx = "\n\n---\n\n".join(parts)
+        system = (
+            "You are a strict contract analyst. Your job is to validate suggestions against "
+            "contract finite state machines. Never recommend an action that cannot be traced "
+            "through the FSM's states, transitions, and rules. Be precise: cite FSM IDs. "
+            "If no suggestions are feasible, say so plainly and explain why."
+        )
+
         msg = client.messages.create(
-            model="claude-sonnet-4-5-20250514",
-            max_tokens=1024,
-            system=(
-                "You are an expert contract analyst. Answer questions about "
-                "contract finite state machines concisely and accurately. "
-                "Reference specific states, transitions, and rules by ID when relevant."
-            ),
-            messages=[{"role": "user", "content": f"Contract FSMs:\n\n{ctx}\n\nQuestion: {question}"}],
+            model="claude-sonnet-4-6",
+            max_tokens=1500,
+            system=system,
+            messages=[{"role": "user", "content": user_content}],
         )
         return msg.content[0].text
     except ImportError:
         return "Anthropic SDK not available. Install with: pip install anthropic"
     except Exception as exc:
         return f"Error querying LLM: {exc}"
-
-
-def _gbrain_search(question: str) -> dict:
-    try:
-        proc = subprocess.run(
-            ["gbrain", "search", question],
-            cwd=str(ROOT), text=True, capture_output=True, timeout=5, check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        return {"available": False, "output": str(exc)}
-    output = (proc.stdout or proc.stderr or "").strip()
-    return {"available": proc.returncode == 0, "returncode": proc.returncode, "output": output[:4000]}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -303,8 +348,9 @@ class Handler(BaseHTTPRequestHandler):
             with _lock:
                 contracts = dict(_contracts)
 
-            answer = _ask_llm(question, contracts)
-            gbrain = _gbrain_search(question)
+            fsm_context = _build_fsm_context(contracts)
+            gbrain = _gbrain_search(question, fsm_context)
+            answer = _ask_llm(question, contracts, gbrain.get("output", ""))
 
             self._send_json({
                 "question": question,
