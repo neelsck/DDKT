@@ -1,0 +1,430 @@
+
+============================================================
+FSM SUMMARY
+============================================================
+States: ['ACTIVE', 'VIOLATION_DETECTED', 'IN_CURE', 'CURED', 'DEFAULT', 'TERMINATED']
+Initial: ACTIVE
+Transitions: 12
+Mappable rules: 16
+Unmappable rules: 18
+
+============================================================
+SCENARIO RESULTS
+============================================================
+
+--- HAPPY_PATH ---
+  Final state: ACTIVE
+  Financials:
+    Tenant_to_Landlord: $18,600.00
+  Narrative (last 5 lines):
+    2027-01-01 [rent_payment_made] ACTIVE → ACTIVE
+    2027-02-01 [rent_payment_made] ACTIVE → ACTIVE
+    2027-03-01 [rent_payment_made] ACTIVE → ACTIVE
+
+--- VIOLATION_WITH_SUCCESSFUL_CURE ---
+  Final state: ACTIVE
+  Financials:
+    Tenant_to_Landlord: $350.00
+  Narrative (last 5 lines):
+    2027-01-15 [loading_outside_window] ACTIVE → VIOLATION_DETECTED
+    2027-01-16 [cure_notice_issued] VIOLATION_DETECTED → IN_CURE
+    2027-01-20 [additional_rent_payment] IN_CURE → ACTIVE
+    2027-01-22 [no transition] event='violation_cured' in state='ACTIVE'
+    2027-01-23 [no transition] event='return_to_compliance' in state='ACTIVE'
+
+--- MULTIPLE_VIOLATIONS_LEADING_TO_DEFAULT ---
+  Final state: IN_CURE
+  Financials:
+    Tenant_to_Landlord: $350.00
+  Narrative (last 5 lines):
+    2027-02-06 [cure_notice_issued] VIOLATION_DETECTED → IN_CURE
+    2027-02-12 [no transition] event='obstruction_occurred' in state='IN_CURE'
+    2027-02-16 [no transition] event='cure_deadline_passed' in state='IN_CURE'
+    2027-02-17 [no transition] event='cure_period_expired' in state='IN_CURE'
+    2027-02-20 [no transition] event='lease_terminated' in state='IN_CURE'
+
+--- PROHIBITED_USE_IMMEDIATE_DEFAULT ---
+  Final state: TERMINATED
+  Financials:
+    Tenant_to_Landlord: $6,200.00
+  Narrative (last 5 lines):
+    2027-03-10 [rent_payment_made] ACTIVE → ACTIVE
+      [effect] FORFEITURE: Tenant forfeits right to use premises for prohibited warehouse/commissary/distribution depot conversion
+    2027-03-15 [prohibited_use_violation] ACTIVE → DEFAULT
+      [effect] FORFEITURE: Tenant forfeits all rights to premises and lease is terminated
+    2027-03-20 [lease_terminated] DEFAULT → TERMINATED
+
+--- EDGE_CASE_REPEATED_VIOLATIONS_WITH_PAYMENTS ---
+  Final state: ACTIVE
+  Financials:
+    Tenant_to_Landlord: $6,900.00
+  Narrative (last 5 lines):
+    2027-04-23 [cure_notice_issued] VIOLATION_DETECTED → IN_CURE
+    2027-04-25 [additional_rent_payment] IN_CURE → ACTIVE
+    2027-04-30 [no transition] event='violation_cured' in state='ACTIVE'
+    2027-05-01 [no transition] event='return_to_compliance' in state='ACTIVE'
+    2027-05-01 [rent_payment_made] ACTIVE → ACTIVE
+
+============================================================
+REGENERATED CONTRACT ENGLISH
+============================================================
+================================================================
+CONTRACT: C_LEASE_contract
+================================================================
+
+PARTIES
+────────────────────────────────────────
+  1. Maria's Bakery LLC
+  2. Old Mill Properties LLC
+
+CONTRACT PARAMETERS
+────────────────────────────────────────
+  Amounts:
+    Monthly Base Rent: $6,200.00
+    Violation Fee Per Occurrence: $350.00
+  Durations:
+    Cure Period Days: 10 days
+    Loading Window End: 8:00 a.m. days
+    Loading Window Start: 6:00 a.m. days
+  Key Dates:
+    Effective Date: 2026-12-15
+
+CONTRACT STATES
+────────────────────────────────────────
+  Lease is active, tenant complying with all obligations ← initial  [rules: R2, R3, R4, R6, R7, R10, R12, R13, R14, R16, R25, R26]
+  Tenant successfully cured violation within cure period  [rules: R2, R3, R4, R6, R7, R10, R12, R13, R14, R16, R25, R26]
+  Tenant failed to cure within 10 days or committed material breach; default remedies available  [rules: R6, R7, R26]
+  Landlord issued written notice; tenant has 10 days to cure violation  [rules: R2, R3, R4, R6, R7, R10, R12, R13, R14, R16, R23, R25, R26]
+  Lease terminated due to uncured default ← terminal
+  Tenant violated loading, parking, or obstruction rules; violation fee assessed  [rules: R2, R3, R4, R6, R7, R10, R12, R13, R14, R16, R23, R25, R26]
+
+RULES AND OBLIGATIONS
+────────────────────────────────────────
+  Rule R10: Obligation (inactive at formation)
+    Tenant → Landlord: Loading only during permitted window
+    Unless Landlord gives prior written approval for a different window, Tenant's loading activity shall occur only between 6:00 a.m. and 8:00 a.m. on business days.
+    Constraint: Controlling provision
+      Duration: 6:00 a.m. to 8:00 a.m.
+      Loading window restricted to 6:00 a.m. to 8:00 a.m. on business days
+    Exception: R11
+
+  Rule R12: Prohibition (inactive at formation)
+    Tenant → Landlord: Block service lane or common areas
+    Tenant shall not block the service lane, common areas, driveways, sidewalks, fire lanes, trash areas, or other tenants' access.
+    Effect: Payment — Violation fee for obstruction
+      Formula: 350.00
+      From: Tenant → To: Landlord
+
+  Rule R13: Obligation (inactive at formation)
+    Tenant → Landlord: Comply with loading requirements
+    Tenant shall comply with all reasonable building rules, municipal requirements, insurance requirements, and safety directions applicable to loading activity.
+
+  Rule R14: Prohibition (inactive at formation)
+    Tenant → Landlord: Park/operate refrigerated vehicle without consent
+    Tenant shall not park, idle, charge, connect to power, or operate a refrigerated vehicle at the Premises overnight without Landlord's prior written consent.
+    Effect: Payment — Violation fee for unauthorized refrigerated vehicle
+      Formula: 350.00
+      From: Tenant → To: Landlord
+    Exception: R15
+
+  Rule R16: Obligation (inactive at formation)
+    Tenant → Landlord: Provide required information in consent request
+    A request for refrigerated vehicle consent must identify the vehicle, license plate, refrigeration unit, expected hours of use, parking location, insurance coverage, cargo endorsement, noise rating, and any power requirements.
+    Trigger: Upon event — Tenant seeks refrigerated vehicle consent
+
+  Rule R19: Obligation (inactive at formation)
+    Tenant → Landlord: Pay violation fee for loading outside window
+    If Tenant loads outside the permitted loading window, Tenant shall pay a violation fee of $350.00 per occurrence.
+    Trigger: Upon event — Tenant loads outside permitted window without approval
+    Effect: Payment — Violation fee per occurrence
+      Formula: 350.00
+      From: Tenant → To: Landlord
+    Exception: R11
+
+  Rule R2: Prohibition (inactive at formation)
+    Tenant → Landlord: Convert premises to warehouse/commissary/distribution depot
+    Tenant shall not convert the Premises into a warehouse, commissary, or distribution depot.
+    Effect: Rule activation — Violation triggers default remedies
+
+  Rule R20: Obligation (inactive at formation)
+    Tenant → Landlord: Pay violation fee for obstruction
+    If Tenant obstructs common areas, Tenant shall pay a violation fee of $350.00 per occurrence.
+    Trigger: Upon event — Tenant blocks service lane, common areas, driveways, sidewalks, fire lanes, trash areas, or other tenants' access
+    Effect: Payment — Violation fee per occurrence
+      Formula: 350.00
+      From: Tenant → To: Landlord
+
+  Rule R21: Obligation (inactive at formation)
+    Tenant → Landlord: Pay violation fee for unauthorized refrigerated vehicle
+    If Tenant parks or operates a refrigerated vehicle without required consent, Tenant shall pay a violation fee of $350.00 per occurrence.
+    Trigger: Upon event — Tenant parks, idles, charges, connects to power, or operates refrigerated vehicle without consent
+    Effect: Payment — Violation fee per occurrence
+      Formula: 350.00
+      From: Tenant → To: Landlord
+    Exception: R15
+
+  Rule R23: Obligation (inactive at formation)
+    Tenant → Landlord: Cure unauthorized loading or parking violation
+    Tenant shall have ten days after written notice to cure an unauthorized loading or parking violation. Cure may require removal of the vehicle, cessation of the unauthorized activity, provision of insurance evidence, or submission of a complete consent request.
+    Trigger: Upon notice — Landlord provides written notice of violation
+      Duration: 10 days
+    Effect: Cure window — Tenant must cure violation within 10 days
+    Constraint: Grace period
+      Duration: 10 days
+      Ten-day cure period after written notice
+
+  Rule R25: Obligation (inactive at formation)
+    Tenant → Landlord: Maintain insurance for refrigerated vehicle
+    Before using any refrigerated vehicle in connection with the Premises, Tenant shall maintain commercial auto liability coverage and cargo or spoilage coverage reasonably acceptable to Landlord.
+    Trigger: When condition precedent holds — Before using refrigerated vehicle
+
+  Rule R26: Obligation (inactive at formation)
+    Tenant → Landlord: Indemnify Landlord for loading/vehicle claims
+    Tenant shall indemnify and hold Landlord harmless from claims, losses, fines, property damage, personal injury, or increased insurance costs arising from Tenant's loading operations or refrigerated vehicle activity, except to the extent caused by Landlord's gross negligence or willful misconduct.
+    Trigger: Upon event — Claims, losses, fines, property damage, personal injury, or increased insurance costs arise from Tenant's loading or vehicle activity
+    Effect: Payment — Indemnification payment to Landlord
+      Formula: actual damages
+      From: Tenant → To: Landlord
+    Constraint: Carve-out
+      Indemnity does not apply to extent caused by Landlord's gross negligence or willful misconduct
+
+  Rule R3: Obligation (inactive at formation)
+    Tenant → Landlord: Ensure wholesale packing remains incidental
+    Tenant must ensure wholesale packing remains incidental to bakery business and does not materially increase noise, odors, waste, traffic, utility use, or loading activity beyond retail bakery level.
+    Constraint: Controlling provision
+      Wholesale activity must remain incidental and not materially increase impacts
+
+  Rule R4: Obligation (inactive at formation)
+    Tenant → Landlord: Obtain consent for change in use
+    Any change in use requires Landlord's prior written consent.
+    Trigger: Upon event — Tenant desires to change use of Premises
+
+  Rule R6: Obligation (inactive at formation)
+    Tenant → Landlord: Pay monthly base rent
+    Tenant shall continue to pay monthly base rent of $6,200.00 on the first day of each calendar month.
+    Trigger: On date — First day of each calendar month
+      Duration: 1 month
+    Effect: Payment — Monthly base rent payment
+      Formula: 6200.00
+      From: Tenant → To: Landlord
+
+  Rule R7: Obligation (inactive at formation)
+    Tenant → Landlord: Pay additional rent charges
+    Any charge, reimbursement, fee, or other amount payable by Tenant under this Addendum constitutes additional rent under the Lease.
+    Trigger: Upon event — Any charge becomes payable under this Addendum
+    Effect: Payment — Additional rent payment
+      Formula: applicable charge amount
+      From: Tenant → To: Landlord
+
+STATE TRANSITIONS
+────────────────────────────────────────
+  When in state "Lease is active, tenant complying with all obligations":
+
+    On event "rent payment made":
+      Tenant pays monthly base rent
+      → Payment: Monthly base rent payment on first day of month [monthly base rent]
+      Remains in "Lease is active, tenant complying with all obligations".
+
+    On event "additional rent payment":
+      Tenant pays additional rent charges when due
+      → Payment: Additional rent charges as they become payable [applicable charge amount]
+      Transitions to "Lease is active, tenant complying with all obligations".
+
+    On event "indemnification claim":
+      Tenant indemnifies landlord for damages arising from loading or vehicle operations
+      → Payment: Tenant indemnifies landlord for claims, losses, fines, property damage, personal injury, or increased insurance costs from loading or vehicle activity [actual damages]
+      Transitions to "Lease is active, tenant complying with all obligations".
+
+    On event "loading outside window":
+      Tenant loads outside permitted window without approval
+      → Payment: Violation fee for loading outside permitted 6am-8am window [violation fee per occurrence]
+      Transitions to "Tenant violated loading, parking, or obstruction rules; violation fee assessed".
+
+    On event "obstruction occurred":
+      Tenant blocks service lane or common areas
+      → Payment: Violation fee for blocking service lane, common areas, driveways, sidewalks, fire lanes, trash areas, or other tenants' access [violation fee per occurrence]
+      Transitions to "Tenant violated loading, parking, or obstruction rules; violation fee assessed".
+
+    On event "unauthorized refrigerated vehicle":
+      Tenant uses refrigerated vehicle without landlord consent
+      → Payment: Violation fee for parking, idling, charging, connecting to power, or operating refrigerated vehicle without consent [violation fee per occurrence]
+      Transitions to "Tenant violated loading, parking, or obstruction rules; violation fee assessed".
+
+    On event "prohibited use violation":
+      Tenant converts premises to warehouse, commissary, or distribution depot triggering default
+      → Forfeiture: Tenant forfeits right to use premises for prohibited warehouse/commissary/distribution depot conversion
+      Transitions to "Tenant failed to cure within 10 days or committed material breach; default remedies available".
+
+  When in state "Tenant successfully cured violation within cure period":
+
+    On event "additional rent payment":
+      Tenant pays additional rent charges when due
+      → Payment: Additional rent charges as they become payable [applicable charge amount]
+      Transitions to "Lease is active, tenant complying with all obligations".
+
+    On event "indemnification claim":
+      Tenant indemnifies landlord for damages arising from loading or vehicle operations
+      → Payment: Tenant indemnifies landlord for claims, losses, fines, property damage, personal injury, or increased insurance costs from loading or vehicle activity [actual damages]
+      Transitions to "Lease is active, tenant complying with all obligations".
+
+    On event "loading outside window":
+      Tenant loads outside permitted window without approval
+      → Payment: Violation fee for loading outside permitted 6am-8am window [violation fee per occurrence]
+      Transitions to "Tenant violated loading, parking, or obstruction rules; violation fee assessed".
+
+    On event "obstruction occurred":
+      Tenant blocks service lane or common areas
+      → Payment: Violation fee for blocking service lane, common areas, driveways, sidewalks, fire lanes, trash areas, or other tenants' access [violation fee per occurrence]
+      Transitions to "Tenant violated loading, parking, or obstruction rules; violation fee assessed".
+
+    On event "unauthorized refrigerated vehicle":
+      Tenant uses refrigerated vehicle without landlord consent
+      → Payment: Violation fee for parking, idling, charging, connecting to power, or operating refrigerated vehicle without consent [violation fee per occurrence]
+      Transitions to "Tenant violated loading, parking, or obstruction rules; violation fee assessed".
+
+    On event "return to compliance":
+      Tenant returns to full compliance after curing violation
+      Transitions to "Lease is active, tenant complying with all obligations".
+
+    On event "prohibited use violation":
+      Tenant converts premises to warehouse, commissary, or distribution depot triggering default
+      → Forfeiture: Tenant forfeits right to use premises for prohibited warehouse/commissary/distribution depot conversion
+      Transitions to "Tenant failed to cure within 10 days or committed material breach; default remedies available".
+
+  When in state "Tenant failed to cure within 10 days or committed material breach; default remedies available":
+
+    On event "lease terminated":
+      Landlord exercises default remedies and terminates lease
+      → Forfeiture: Tenant forfeits all rights to premises and lease is terminated
+      Transitions to "Lease terminated due to uncured default".
+
+    On event "additional rent payment":
+      Tenant pays additional rent charges when due
+      → Payment: Additional rent charges as they become payable [applicable charge amount]
+      Transitions to "Lease is active, tenant complying with all obligations".
+
+    On event "indemnification claim":
+      Tenant indemnifies landlord for damages arising from loading or vehicle operations
+      → Payment: Tenant indemnifies landlord for claims, losses, fines, property damage, personal injury, or increased insurance costs from loading or vehicle activity [actual damages]
+      Transitions to "Lease is active, tenant complying with all obligations".
+
+  When in state "Landlord issued written notice; tenant has 10 days to cure violation":
+
+    On event "additional rent payment":
+      Tenant pays additional rent charges when due
+      → Payment: Additional rent charges as they become payable [applicable charge amount]
+      Transitions to "Lease is active, tenant complying with all obligations".
+
+    On event "indemnification claim":
+      Tenant indemnifies landlord for damages arising from loading or vehicle operations
+      → Payment: Tenant indemnifies landlord for claims, losses, fines, property damage, personal injury, or increased insurance costs from loading or vehicle activity [actual damages]
+      Transitions to "Lease is active, tenant complying with all obligations".
+
+    On event "violation cured":
+      Guard: cure within period  =  true
+      Tenant successfully cures violation within 10-day cure period
+      Transitions to "Tenant successfully cured violation within cure period".
+
+    On event "cure period expired":
+      Guard: cure within period  =  false
+      Tenant fails to cure violation within 10-day cure period
+      Transitions to "Tenant failed to cure within 10 days or committed material breach; default remedies available".
+
+  When in state "Tenant violated loading, parking, or obstruction rules; violation fee assessed":
+
+    On event "additional rent payment":
+      Tenant pays additional rent charges when due
+      → Payment: Additional rent charges as they become payable [applicable charge amount]
+      Transitions to "Lease is active, tenant complying with all obligations".
+
+    On event "indemnification claim":
+      Tenant indemnifies landlord for damages arising from loading or vehicle operations
+      → Payment: Tenant indemnifies landlord for claims, losses, fines, property damage, personal injury, or increased insurance costs from loading or vehicle activity [actual damages]
+      Transitions to "Lease is active, tenant complying with all obligations".
+
+    On event "loading outside window":
+      Tenant loads outside permitted window without approval
+      → Payment: Violation fee for loading outside permitted 6am-8am window [violation fee per occurrence]
+      Transitions to "Tenant violated loading, parking, or obstruction rules; violation fee assessed".
+
+    On event "obstruction occurred":
+      Tenant blocks service lane or common areas
+      → Payment: Violation fee for blocking service lane, common areas, driveways, sidewalks, fire lanes, trash areas, or other tenants' access [violation fee per occurrence]
+      Transitions to "Tenant violated loading, parking, or obstruction rules; violation fee assessed".
+
+    On event "unauthorized refrigerated vehicle":
+      Tenant uses refrigerated vehicle without landlord consent
+      → Payment: Violation fee for parking, idling, charging, connecting to power, or operating refrigerated vehicle without consent [violation fee per occurrence]
+      Transitions to "Tenant violated loading, parking, or obstruction rules; violation fee assessed".
+
+    On event "cure notice issued":
+      Landlord provides written notice of violation triggering cure period
+      → Cure window: Landlord issues written notice; tenant has 10 days to cure violation
+      Transitions to "Landlord issued written notice; tenant has 10 days to cure violation".
+
+    On event "prohibited use violation":
+      Tenant converts premises to warehouse, commissary, or distribution depot triggering default
+      → Forfeiture: Tenant forfeits right to use premises for prohibited warehouse/commissary/distribution depot conversion
+      Transitions to "Tenant failed to cure within 10 days or committed material breach; default remedies available".
+
+UNMODELED RULES
+────────────────────────────────────────
+  The following rules could not be formally modeled:
+
+  R1: [Permission] Tenant may use the Premises for retail bakery sales, preparation of baked goods, customer pickup orders, incidental wholesale packing, and office activities related to the bakery business.
+    Reason: PERMISSION is not in the four mappable primitives
+
+  R11: [Power] Landlord may give prior written approval for a different loading window than 6:00 a.m. to 8:00 a.m.
+    Reason: POWER is not in the four mappable primitives
+
+  R15: [Power] Landlord may grant or withhold consent for refrigerated vehicle operations.
+    Reason: POWER is not in the four mappable primitives
+
+  R17: [Power] Landlord may require Tenant to use a designated parking space, prohibit engine idling, require drip protection, require proof of insurance, or impose other reasonable conditions to protect the property and other occupants.
+    Reason: POWER is not in the four mappable primitives
+
+  R18: [Representation] Any parking or loading right under this Addendum is appurtenant to Tenant's occupancy of the Premises and has no separate value independent of the Lease.
+    Reason: REPRESENTATION is not in the four mappable primitives
+
+  R22: [Representation] Unauthorized activity violation fee of $350.00 per occurrence applies to loading outside window, obstruction, or unauthorized refrigerated vehicle operations.
+    Reason: REPRESENTATION is not in the four mappable primitives
+
+  R24: [Covenant] Failure to cure within the ten-day cure period is an event of default under the Lease.
+    Reason: COVENANT is not in the four mappable primitives
+
+  R27: [Power] Upon an uncured default, Landlord may suspend loading access.
+    Reason: POWER is not in the four mappable primitives
+
+  R28: [Power] Upon an uncured default, Landlord may revoke refrigerated vehicle consent.
+    Reason: POWER is not in the four mappable primitives
+
+  R29: [Power] Upon an uncured default, Landlord may remove unauthorized vehicles as permitted by law.
+    Reason: POWER is not in the four mappable primitives
+
+  R30: [Power] Upon an uncured default, Landlord may seek injunctive relief.
+    Reason: POWER is not in the four mappable primitives
+
+  R31: [Power] Upon an uncured default, Landlord may exercise any remedy available under the Lease.
+    Reason: POWER is not in the four mappable primitives
+
+  R32: [Immunity] Acceptance of rent or delay in enforcement does not waive Landlord's rights.
+    Reason: IMMUNITY is not in the four mappable primitives
+
+  R33: [Representation] Except as expressly modified by this Addendum, the Lease remains in full force and effect.
+    Reason: REPRESENTATION is not in the four mappable primitives
+
+  R34: [Representation] Landlord makes no representation regarding Tenant's tax treatment of equipment, vehicles, delivery routes, or business expenses.
+    Reason: REPRESENTATION is not in the four mappable primitives
+
+  R5: [Power] Landlord may condition consent on reasonable operational safeguards, including proof of insurance, traffic controls, or limits on vehicle idling.
+    Reason: POWER is not in the four mappable primitives
+
+  R8: [Representation] Tenant's obligation to pay rent and additional rent is not conditioned on receipt of an invoice.
+    Reason: REPRESENTATION is not in the four mappable primitives
+
+  R9: [Permission] Tenant may use the rear service lane solely for loading and unloading bakery products, ingredients, packaging, and related supplies.
+    Reason: PERMISSION is not in the four mappable primitives
+
+================================================================
+END OF CONTRACT
+================================================================

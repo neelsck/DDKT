@@ -1,0 +1,467 @@
+
+============================================================
+FSM SUMMARY
+============================================================
+States: ['ACTIVE', 'MINIMUM_SHORTFALL', 'REBATE_EARNED', 'PAYMENT_OVERDUE', 'COLD_CHAIN_FAILURE', 'TERMINATION_PENDING', 'FINAL_RECONCILIATION', 'FULFILLED']
+Initial: ACTIVE
+Transitions: 15
+Mappable rules: 26
+Unmappable rules: 17
+
+============================================================
+SCENARIO RESULTS
+============================================================
+
+--- HAPPY_PATH ---
+  Final state: ACTIVE
+  Financials:
+    Supplier_to_Bakery: $400.00
+    Bakery_to_Supplier: $0.00
+  Narrative (last 5 lines):
+    2027-01-21 [order_confirmed] ACTIVE → ACTIVE
+    2027-01-27 [pickup_completed] ACTIVE → ACTIVE
+    2027-01-31 [month_end_evaluation] ACTIVE → REBATE_EARNED
+    2027-02-05 [rebate_applied] REBATE_EARNED → ACTIVE
+    2027-02-10 [invoice_payment] ACTIVE → ACTIVE
+
+--- MINIMUM_SHORTFALL_RECOVERY ---
+  Final state: ACTIVE
+  Financials: (none)
+  Narrative (last 5 lines):
+    2027-02-12 [no transition] event='pickup_completed' in state='MINIMUM_SHORTFALL'
+    2027-02-20 [no transition] event='order_placed' in state='MINIMUM_SHORTFALL'
+    2027-02-21 [no transition] event='order_confirmed' in state='MINIMUM_SHORTFALL'
+    2027-02-27 [no transition] event='pickup_completed' in state='MINIMUM_SHORTFALL'
+    2027-02-28 [month_end_evaluation] MINIMUM_SHORTFALL → ACTIVE
+
+--- PAYMENT_OVERDUE_CURE ---
+  Final state: ACTIVE
+  Financials:
+    Bakery_to_Supplier: $0.00
+  Narrative (last 5 lines):
+    2027-01-11 [order_confirmed] ACTIVE → ACTIVE
+    2027-01-17 [pickup_completed] ACTIVE → ACTIVE
+    2027-01-31 [no transition] event='month_end_evaluation' in state='ACTIVE'
+    2027-02-15 [payment_missed] ACTIVE → PAYMENT_OVERDUE
+    2027-02-22 [payment_received] PAYMENT_OVERDUE → ACTIVE
+
+--- COLD_CHAIN_FAILURE_RESOLVED ---
+  Final state: ACTIVE
+  Financials: (none)
+  Narrative (last 5 lines):
+    2027-01-09 [order_confirmed] ACTIVE → ACTIVE
+      [effect] FORFEITURE: Supplier assumes liability for spoilage due to cold-chain failure
+    2027-01-14 [cold_chain_shortfall] ACTIVE → COLD_CHAIN_FAILURE
+    2027-01-15 [cold_chain_restored] COLD_CHAIN_FAILURE → ACTIVE
+    2027-01-15 [pickup_completed] ACTIVE → ACTIVE
+
+--- TERMINATION_FOR_CONVENIENCE ---
+  Final state: FULFILLED
+  Financials:
+    Supplier_to_Bakery: $400.00
+  Narrative (last 5 lines):
+    2027-02-05 [rebate_applied] REBATE_EARNED → ACTIVE
+    2027-02-10 [termination_notice_issued] ACTIVE → TERMINATION_PENDING
+    2027-03-12 [no transition] event='cure_deadline_passed' in state='TERMINATION_PENDING'
+    2027-03-12 [notice_period_elapsed] TERMINATION_PENDING → FINAL_RECONCILIATION
+    2027-03-20 [final_settlement_complete] FINAL_RECONCILIATION → FULFILLED
+
+============================================================
+REGENERATED CONTRACT ENGLISH
+============================================================
+================================================================
+CONTRACT: C_SUPPLIER_contract
+================================================================
+
+PARTIES
+────────────────────────────────────────
+  1. Maria's Bakery LLC
+  2. Valley Provisions LLC
+
+CONTRACT PARAMETERS
+────────────────────────────────────────
+  Amounts:
+    Monthly Minimum: $4,500.00
+    Volume Rebate Amount: $400.00
+    Volume Rebate Threshold: $8,000.00
+  Durations:
+    Breach Cure Days: 30 days
+    Forecast Window Days: 28 days
+    Forecast Window Weeks: 4 days
+    Pickup Window Hours: 4 days
+    Rebate Payment Days: 30 days
+    Termination Notice Days: 30 days
+  Thresholds:
+    Consecutive Months For Supplier Options: 2
+    Monthly Minimum Purchases: 4500.00
+    Volume Rebate Threshold: 8000.00
+  Key Dates:
+    Effective Date: 2026-12-30
+
+CONTRACT STATES
+────────────────────────────────────────
+  Normal operation with ongoing purchase and delivery obligations ← initial  [rules: R1, R5, R9, R10, R11, R19, R20, R22, R23, R24, R26, R28, R34, R35, R36, R37, R38, R39, R40, R41]
+  Supplier failed to maintain temperature-controlled conditions  [rules: R1, R5, R9, R10, R11, R19, R20, R22, R23, R34, R35, R36, R37, R38, R39, R40, R41]
+  Agreement ended, performing final accounting and rebate settlement  [rules: R15, R34, R35, R36, R37]
+  Agreement completed with all obligations satisfied ← terminal
+  Bakery failed to meet monthly minimum purchase requirement  [rules: R1, R5, R9, R10, R11, R19, R20, R22, R23, R24, R26, R28, R34, R35, R36, R37, R38, R39, R40, R41]
+  Bakery failed to pay undisputed invoice by due date  [rules: R1, R5, R9, R10, R11, R19, R20, R22, R23, R24, R26, R28, R34, R35, R36, R37, R38, R39, R40, R41]
+  Bakery exceeded volume rebate threshold for the month  [rules: R1, R5, R9, R10, R11, R13, R14, R16, R17, R18, R19, R20, R22, R23, R24, R26, R28, R34, R35, R36, R37, R38, R39, R40, R41]
+  Party issued termination notice, waiting for notice period to elapse  [rules: R1, R5, R9, R10, R11, R14, R15, R19, R20, R22, R23, R24, R26, R28, R34, R35, R36, R37]
+
+RULES AND OBLIGATIONS
+────────────────────────────────────────
+  Rule R1: Obligation (inactive at formation)
+    Supplier → Bakery: sell Products to Bakery
+    Supplier shall sell to Bakery flour, butter, dairy products, yeast, eggs, fillings, paper packaging, refrigerated ingredients, and related bakery supplies (collectively, the 'Products').
+
+  Rule R10: Obligation (inactive at formation)
+    Bakery → Supplier: place weekly orders by Wednesday
+    Bakery shall place weekly orders by Wednesday for Products needed the following week unless the parties agree on another ordering schedule.
+    Trigger: After time period — Every Wednesday
+
+  Rule R11: Obligation (inactive at formation)
+    Supplier → Bakery: confirm accepted orders
+    Supplier shall confirm accepted orders by email or portal notice.
+    Trigger: Upon event — Supplier accepts an order from Bakery
+
+  Rule R13: Obligation (inactive at formation)
+    Supplier → Bakery: issue volume rebate credit
+    If Bakery purchases at least $8,000.00 of Products in a calendar month, Supplier shall issue Bakery a $400.00 credit for that month.
+    Trigger: When threshold crossed — Bakery purchases at least $8,000.00 of Products in a calendar month
+      Duration: 1 calendar month
+      Threshold: monthly_purchases gte 8000.00
+    Effect: Payment — Issue $400.00 credit to Bakery
+      Formula: 400.00
+      From: Supplier → To: Bakery
+      Cap: $400.00
+
+  Rule R14: Obligation (inactive at formation)
+    Supplier → Bakery: apply rebate as credit on next monthly statement
+    Supplier shall apply the rebate as a credit on the next monthly statement unless the Agreement has ended.
+    Trigger: When condition precedent holds — Agreement is ongoing
+    Effect: Payment — Apply rebate as credit on next monthly statement
+      Formula: rebate amount
+      From: Supplier → To: Bakery
+    Exception: R15
+
+  Rule R15: Obligation (inactive at formation)
+    Supplier → Bakery: pay rebate within thirty days after final reconciliation
+    If the Agreement has ended, Supplier shall pay the rebate within thirty days after final reconciliation.
+    Trigger: When condition precedent holds — Agreement has ended
+      Duration: 30 days
+    Effect: Payment — Pay rebate within thirty days after final reconciliation
+      Formula: rebate amount
+      From: Supplier → To: Bakery
+    Constraint: Grace period
+      Duration: 30 days
+      Payment due within 30 days after final reconciliation
+
+  Rule R16: Prohibition (inactive at formation)
+    Bakery → Supplier: count returned Products toward rebate threshold
+    Returned Products do not count toward the rebate threshold.
+    Constraint: Carve-out
+      Returned Products excluded from rebate threshold calculation
+
+  Rule R17: Prohibition (inactive at formation)
+    Bakery → Supplier: count credits toward rebate threshold
+    Credits do not count toward the rebate threshold.
+    Constraint: Carve-out
+      Credits excluded from rebate threshold calculation
+
+  Rule R18: Prohibition (inactive at formation)
+    Bakery → Supplier: count non-Product charges toward rebate threshold
+    Non-Product charges do not count toward the rebate threshold.
+    Constraint: Carve-out
+      Non-Product charges excluded from rebate threshold calculation
+
+  Rule R19: Obligation (inactive at formation)
+    Supplier → Bakery: make refrigerated Products available for pickup within four-hour window
+    Supplier shall make refrigerated Products available for pickup within a four-hour pickup window confirmed for the applicable order.
+    Trigger: Upon event — Pickup window confirmed for applicable order
+    Constraint: Controlling provision
+      Duration: 4 hours
+      Four-hour pickup window for refrigerated Products
+
+  Rule R20: Obligation (inactive at formation)
+    Supplier → Bakery: hold refrigerated Products in temperature-controlled conditions
+    Refrigerated Products shall be held in commercially reasonable temperature-controlled conditions until pickup or delivery.
+
+  Rule R22: Obligation (inactive at formation)
+    Supplier → Bakery: cooperate in substitute sourcing upon Cold-Chain Shortfall
+    Upon a Cold-Chain Shortfall, Supplier shall cooperate in substitute sourcing, expedited replacement, or reasonable order adjustment.
+    Trigger: Upon event — Cold-Chain Shortfall occurs
+
+  Rule R23: Obligation (inactive at formation)
+    Supplier → Bakery: responsible for spoilage from cold-chain failure
+    Supplier is responsible for spoilage caused by Supplier's failure to maintain required cold-chain conditions before pickup or delivery.
+    Trigger: Upon event — Supplier fails to maintain required cold-chain conditions before pickup or delivery
+
+  Rule R24: Obligation (inactive at formation)
+    Bakery → Supplier: responsible for spoilage from Bakery delay
+    Bakery is responsible for spoilage caused by Bakery delay, vehicle failure, failure to maintain refrigeration after pickup, or improper handling after risk of loss passes.
+    Trigger: Upon event — Bakery delay, vehicle failure, failure to maintain refrigeration after pickup, or improper handling after risk of loss passes
+
+  Rule R26: Obligation (inactive at formation)
+    Bakery → Supplier: pay undisputed invoices according to standard payment terms
+    Bakery shall pay undisputed invoices according to Supplier's standard payment terms.
+    Trigger: Upon event — Invoice is undisputed and due according to Supplier's standard payment terms
+    Effect: Payment — Pay undisputed invoice amount
+      Formula: invoice amount
+      From: Bakery → To: Supplier
+
+  Rule R28: Obligation (inactive at formation)
+    Bakery → Supplier: pay undisputed amounts when due
+    Undisputed amounts remain payable when due.
+    Trigger: On date — Undisputed amount due date arrives
+    Effect: Payment — Pay undisputed amount
+      Formula: undisputed amount
+      From: Bakery → To: Supplier
+
+  Rule R34: Obligation (inactive at formation)
+    Bakery → Supplier: maintain confidentiality
+    Pricing, forecasts, customer route volume, recipes, formulas, and business plans are confidential and may be used only to perform this Agreement.
+
+  Rule R35: Obligation (inactive at formation)
+    Supplier → Bakery: maintain confidentiality
+    Pricing, forecasts, customer route volume, recipes, formulas, and business plans are confidential and may be used only to perform this Agreement.
+
+  Rule R36: Prohibition (inactive at formation)
+    Bakery → Supplier: use confidential information for purposes other than performing Agreement
+    Confidential information may be used only to perform this Agreement.
+
+  Rule R37: Prohibition (inactive at formation)
+    Supplier → Bakery: use confidential information for purposes other than performing Agreement
+    Confidential information may be used only to perform this Agreement.
+
+  Rule R38: Prohibition (inactive at formation)
+    Bakery → Supplier: amend Agreement without writing
+    This Agreement may be amended only in writing.
+
+  Rule R39: Prohibition (inactive at formation)
+    Supplier → Bakery: amend Agreement without writing
+    This Agreement may be amended only in writing.
+
+  Rule R40: Prohibition (inactive at formation)
+    Bakery → Supplier: assign Agreement without consent
+    Neither party may assign this Agreement without consent except in connection with a sale of substantially all assets or a merger.
+    Exception: R42
+
+  Rule R41: Prohibition (inactive at formation)
+    Supplier → Bakery: assign Agreement without consent
+    Neither party may assign this Agreement without consent except in connection with a sale of substantially all assets or a merger.
+    Exception: R42
+
+  Rule R5: Obligation (inactive at formation)
+    Bakery → Supplier: purchase monthly minimum of Products
+    While active, Bakery shall purchase not less than $4,500.00 of Products during each calendar month.
+    Trigger: Upon event — Bakery signs a wholesale breakfast delivery contract requiring weekday deliveries
+    Constraint: Minimum floor
+      Value: $4,500.00
+      Duration: 1 calendar month
+      Monthly minimum purchase amount of $4,500.00
+
+  Rule R9: Obligation (inactive at formation)
+    Bakery → Supplier: provide rolling four-week forecast
+    Bakery shall provide a rolling four-week forecast of expected Product needs while a wholesale delivery route is active.
+    Trigger: When condition precedent holds — A wholesale delivery route is active
+    Constraint: Controlling provision
+      Duration: 4 weeks
+      Rolling four-week forecast window
+
+STATE TRANSITIONS
+────────────────────────────────────────
+  When in state "Normal operation with ongoing purchase and delivery obligations":
+
+    On event "month end evaluation":
+      Guard: monthly purchases  <  4500.00
+      Month ends with purchases below minimum threshold
+      Transitions to "Bakery failed to meet monthly minimum purchase requirement".
+
+    On event "order placed":
+      Bakery places weekly order by Wednesday
+      Remains in "Normal operation with ongoing purchase and delivery obligations".
+
+    On event "order confirmed":
+      Supplier confirms accepted order
+      Remains in "Normal operation with ongoing purchase and delivery obligations".
+
+    On event "pickup completed":
+      Bakery completes pickup within four-hour window
+      Remains in "Normal operation with ongoing purchase and delivery obligations".
+
+    On event "invoice payment":
+      Bakery pays invoice on time according to standard payment terms
+      → Payment: Bakery pays undisputed invoice per standard terms [invoice amount]
+      Remains in "Normal operation with ongoing purchase and delivery obligations".
+
+    On event "month end evaluation":
+      Guard: monthly purchases  ≥  8000.00
+      Bakery exceeds volume rebate threshold and earns credit
+      → Payment: Issue $400 volume rebate credit for exceeding monthly threshold [400.00]
+      Transitions to "Bakery exceeded volume rebate threshold for the month".
+
+    On event "payment missed":
+      Guard: days overdue  >  0
+      Bakery fails to pay undisputed invoice by due date
+      Transitions to "Bakery failed to pay undisputed invoice by due date".
+
+    On event "cold chain shortfall":
+      Supplier fails to maintain required temperature-controlled conditions
+      → Forfeiture: Supplier assumes liability for spoilage due to cold-chain failure
+      Transitions to "Supplier failed to maintain temperature-controlled conditions".
+
+    On event "termination notice issued":
+      Either party issues termination notice
+      → Cure window: 30-day notice period before termination becomes effective
+      Transitions to "Party issued termination notice, waiting for notice period to elapse".
+
+  When in state "Supplier failed to maintain temperature-controlled conditions":
+
+    On event "cold chain restored":
+      Cold-chain conditions restored and substitute sourcing resolved
+      Transitions to "Normal operation with ongoing purchase and delivery obligations".
+
+    On event "termination notice issued":
+      Either party issues termination notice
+      → Cure window: 30-day notice period before termination becomes effective
+      Transitions to "Party issued termination notice, waiting for notice period to elapse".
+
+  When in state "Agreement ended, performing final accounting and rebate settlement":
+
+    On event "final settlement complete":
+      All final obligations settled including rebate payment
+      → Payment: Pay any remaining rebate balance within 30 days of final reconciliation [final rebate amount]
+      Transitions to "Agreement completed with all obligations satisfied".
+
+  When in state "Bakery failed to meet monthly minimum purchase requirement":
+
+    On event "month end evaluation":
+      Guard: monthly purchases  ≥  4500.00
+      Bakery returns to compliance with monthly minimum
+      Transitions to "Normal operation with ongoing purchase and delivery obligations".
+
+    On event "month end evaluation":
+      Guard: monthly purchases  ≥  8000.00
+      Bakery exceeds volume rebate threshold and earns credit
+      → Payment: Issue $400 volume rebate credit for exceeding monthly threshold [400.00]
+      Transitions to "Bakery exceeded volume rebate threshold for the month".
+
+    On event "payment missed":
+      Guard: days overdue  >  0
+      Bakery fails to pay undisputed invoice by due date
+      Transitions to "Bakery failed to pay undisputed invoice by due date".
+
+    On event "cold chain shortfall":
+      Supplier fails to maintain required temperature-controlled conditions
+      → Forfeiture: Supplier assumes liability for spoilage due to cold-chain failure
+      Transitions to "Supplier failed to maintain temperature-controlled conditions".
+
+    On event "termination notice issued":
+      Either party issues termination notice
+      → Cure window: 30-day notice period before termination becomes effective
+      Transitions to "Party issued termination notice, waiting for notice period to elapse".
+
+  When in state "Bakery failed to pay undisputed invoice by due date":
+
+    On event "payment received":
+      Bakery pays overdue amount and returns to good standing
+      → Payment: Bakery pays outstanding invoice amount [outstanding amount]
+      Transitions to "Normal operation with ongoing purchase and delivery obligations".
+
+    On event "termination notice issued":
+      Either party issues termination notice
+      → Cure window: 30-day notice period before termination becomes effective
+      Transitions to "Party issued termination notice, waiting for notice period to elapse".
+
+  When in state "Bakery exceeded volume rebate threshold for the month":
+
+    On event "month end evaluation":
+      Guard: monthly purchases  <  4500.00
+      Month ends with purchases below minimum threshold
+      Transitions to "Bakery failed to meet monthly minimum purchase requirement".
+
+    On event "rebate applied":
+      Rebate credit applied to monthly statement, returning to normal operations
+      Transitions to "Normal operation with ongoing purchase and delivery obligations".
+
+    On event "payment missed":
+      Guard: days overdue  >  0
+      Bakery fails to pay undisputed invoice by due date
+      Transitions to "Bakery failed to pay undisputed invoice by due date".
+
+    On event "cold chain shortfall":
+      Supplier fails to maintain required temperature-controlled conditions
+      → Forfeiture: Supplier assumes liability for spoilage due to cold-chain failure
+      Transitions to "Supplier failed to maintain temperature-controlled conditions".
+
+    On event "termination notice issued":
+      Either party issues termination notice
+      → Cure window: 30-day notice period before termination becomes effective
+      Transitions to "Party issued termination notice, waiting for notice period to elapse".
+
+  When in state "Party issued termination notice, waiting for notice period to elapse":
+
+    On event "notice period elapsed":
+      Guard: days since notice  ≥  30
+      Termination notice period completes, entering final reconciliation
+      Transitions to "Agreement ended, performing final accounting and rebate settlement".
+
+UNMODELED RULES
+────────────────────────────────────────
+  The following rules could not be formally modeled:
+
+  R12: [Representation] An order is binding only when accepted by Supplier.
+    Reason: REPRESENTATION is not in the four mappable primitives
+
+  R2: [WARRANTY] Products shall conform to the specifications, temperature requirements, shelf-life requirements, labeling, and packaging standards customarily used by Supplier for similarly situated bakery customers.
+    Reason: WARRANTY is not in the four mappable primitives
+
+  R21: [Representation] A 'Cold-Chain Shortfall' occurs if Supplier's temperature-control failure or pickup-window failure materially prevents Bakery from timely using Products for the wholesale breakfast route.
+    Reason: REPRESENTATION is not in the four mappable primitives
+
+  R25: [Power] Supplier may adjust prices for commodity changes, freight increases, labor costs, packaging changes, or supplier cost increases, provided Supplier gives Bakery reasonable advance notice before the adjusted price applies to future orders.
+    Reason: POWER is not in the four mappable primitives
+
+  R27: [Permission] Bakery may dispute an invoice in good faith by written notice describing the disputed amount and reason for dispute.
+    Reason: PERMISSION is not in the four mappable primitives
+
+  R29: [Power] Either party may terminate on thirty days' written notice.
+    Reason: POWER is not in the four mappable primitives
+
+  R3: [Permission] Bakery may request specialty items.
+    Reason: PERMISSION is not in the four mappable primitives
+
+  R30: [Power] Either party may terminate on thirty days' written notice.
+    Reason: POWER is not in the four mappable primitives
+
+  R31: [Power] Either party may terminate for material breach that remains uncured thirty days after written notice.
+    Reason: POWER is not in the four mappable primitives
+
+  R32: [Power] Either party may terminate for material breach that remains uncured thirty days after written notice.
+    Reason: POWER is not in the four mappable primitives
+
+  R33: [Power] Payment default may be subject to a shorter cure period if stated in Supplier's credit terms.
+    Reason: POWER is not in the four mappable primitives
+
+  R4: [Power] Supplier may accept or reject specialty-item requests depending on availability, supplier capacity, minimum order sizes, and mutually agreed pricing.
+    Reason: POWER is not in the four mappable primitives
+
+  R42: [Permission] Either party may assign this Agreement in connection with a sale of substantially all assets or a merger.
+    Reason: PERMISSION is not in the four mappable primitives
+
+  R43: [Permission] Either party may assign this Agreement in connection with a sale of substantially all assets or a merger.
+    Reason: PERMISSION is not in the four mappable primitives
+
+  R6: [Power] Supplier may suspend preferred pricing if Bakery misses the minimum for two consecutive months.
+    Reason: POWER is not in the four mappable primitives
+
+  R7: [Power] Supplier may reduce reserved inventory if Bakery misses the minimum for two consecutive months.
+    Reason: POWER is not in the four mappable primitives
+
+  R8: [Power] Supplier may require revised forecasts if Bakery misses the minimum for two consecutive months.
+    Reason: POWER is not in the four mappable primitives
+
+================================================================
+END OF CONTRACT
+================================================================

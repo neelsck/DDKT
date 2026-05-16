@@ -1,0 +1,55 @@
+
+============================================================
+SCENARIO RESULTS
+============================================================
+
+--- HAPPY_PATH ---
+  Final state: INVOICE_PENDING
+  Financials: (none)
+  Narrative (last 5 lines):
+    2027-01-05 [no transition] event='delivery_late' in state='ACTIVE'
+    2027-01-31 [invoice_issued] ACTIVE → INVOICE_PENDING
+    2027-02-10 [no transition] event='payment_received' in state='INVOICE_PENDING'
+    2027-02-28 [no transition] event='invoice_issued' in state='INVOICE_PENDING'
+    2027-03-14 [no transition] event='payment_received' in state='INVOICE_PENDING'
+
+--- LATE_DELIVERY_CREDITS ---
+  Final state: INVOICE_PENDING
+  Financials: (none)
+  Narrative (last 5 lines):
+    2027-01-06 [no transition] event='delivery_late' in state='ACTIVE'
+    2027-01-13 [no transition] event='delivery_late' in state='ACTIVE'
+    2027-01-31 [invoice_issued] ACTIVE → INVOICE_PENDING
+    2027-02-12 [no transition] event='payment_received' in state='INVOICE_PENDING'
+    2027-02-17 [no transition] event='performance_restored' in state='INVOICE_PENDING'
+
+--- AT_RISK_AND_CURE ---
+  Final state: INVOICE_PENDING
+  Financials: (none)
+  Narrative (last 5 lines):
+    2027-01-22 [no transition] event='at_risk_threshold_reached' in state='ACTIVE'
+    2027-01-23 [no transition] event='at_risk_notice_issued' in state='ACTIVE'
+    2027-01-28 [no transition] event='cure_completed' in state='ACTIVE'
+    2027-01-31 [invoice_issued] ACTIVE → INVOICE_PENDING
+    2027-02-14 [no transition] event='payment_received' in state='INVOICE_PENDING'
+
+--- CURE_FAILED_TERMINATION ---
+  Final state: ACTIVE
+  Financials: (none)
+  Narrative (last 5 lines):
+    2027-01-23 [no transition] event='delivery_late' in state='ACTIVE'
+    2027-01-23 [no transition] event='at_risk_threshold_reached' in state='ACTIVE'
+    2027-01-24 [no transition] event='at_risk_notice_issued' in state='ACTIVE'
+    2027-02-03 [no transition] event='cure_failed' in state='ACTIVE'
+    2027-03-05 [no transition] event='termination_effective' in state='ACTIVE'
+
+--- PAYMENT_OVERDUE_THEN_TERMINATION ---
+  Final state: TERMINATED
+  Financials:
+    Customer_to_Bakery: $0.00
+  Narrative (last 5 lines):
+    2027-01-31 [invoice_issued] ACTIVE → INVOICE_PENDING
+    2027-02-16 [payment_deadline_exceeded] INVOICE_PENDING → PAYMENT_OVERDUE
+    2027-02-20 [termination_notice_issued] PAYMENT_OVERDUE → TERMINATION_NOTICE_GIVEN
+    2027-02-25 [no transition] event='late_payment_received' in state='TERMINATION_NOTICE_GIVEN'
+    2027-03-22 [termination_effective] TERMINATION_NOTICE_GIVEN → TERMINATED

@@ -1,0 +1,382 @@
+================================================================
+CONTRACT: C_VAN_contract
+================================================================
+
+PARTIES
+────────────────────────────────────────
+  1. ColdRoad Vans Inc.
+  2. Maria's Bakery LLC
+  3. Neighborhood Bank, N.A.
+
+CONTRACT PARAMETERS
+────────────────────────────────────────
+  Amounts:
+    Down Payment: $8,000.00
+    Financed Amount: $50,000.00
+    Monthly Payment: $1,175.00
+    Purchase Price: $58,000.00
+  Durations:
+    Delivery Grace Period Days: 5 days
+  Thresholds:
+    Bakery Business Use Percentage Minimum: 50
+  Key Dates:
+    Delivery Date: (to be determined)
+    Effective Date: 2026-12-20
+    Scheduled Delivery Date: (to be determined)
+
+CONTRACT STATES
+────────────────────────────────────────
+  Contract signed, down payment due, awaiting delivery ← initial  [rules: R1, R2, R3, R10, R12]
+  Down payment made, equipment ownership transferred, awaiting physical delivery  [rules: R4, R5, R12]
+  Equipment delivered and insured, inspection period, ready for commercial use  [rules: R8, R12, R15, R16, R17, R23, R25, R26, R27, R28, R29, R30]
+  Equipment delivered but commercial insurance not yet active, no commercial use allowed  [rules: R8, R12, R13, R14, R15, R16, R17, R18, R19]
+  Scheduled delivery date passed, within 5-day grace period  [rules: R4, R5, R12]
+  All installments paid, contract obligations completed ← terminal
+  Equipment inspected and accepted, monthly payments active, operational obligations ongoing  [rules: R12, R23, R25, R26, R27, R28, R29, R30]
+  Contract terminated due to breach or other termination event ← terminal
+
+RULES AND OBLIGATIONS
+────────────────────────────────────────
+  Rule R1: Obligation (inactive at formation)
+    ColdRoad Vans Inc. → Maria's Bakery LLC: Sell Equipment to Buyer
+    Dealer agrees to sell, and Buyer agrees to purchase, one 2026 refrigerated delivery van with an integrated refrigeration unit, cargo temperature display, insulation package, rear shelving, and related manuals (collectively, the 'Equipment').
+    Trigger: On date — Agreement effective date
+    Effect: Asset transfer — Transfer of Equipment ownership from Dealer to Buyer
+
+  Rule R10: Obligation (inactive at formation)
+    Maria's Bakery LLC → Neighborhood Bank, N.A.: Grant first-priority security interest in Equipment
+    To secure prompt payment and performance of all obligations owing to Lender, Buyer grants Lender a first-priority security interest in the Equipment, all additions, attachments, accessories, substitutions, replacement parts, insurance proceeds, and records related to the Equipment.
+    Trigger: On date — Agreement effective date
+    Effect: State transition — Security interest granted to Lender in Equipment and related property
+
+  Rule R12: Obligation (inactive at formation)
+    Maria's Bakery LLC → Neighborhood Bank, N.A.: Keep Equipment free from unauthorized liens
+    Buyer shall keep the Equipment free from liens other than Lender's security interest and permitted statutory liens arising in the ordinary course and discharged before delinquency.
+    Trigger: After time period — Continuously from effective date
+    Constraint: Carve-out
+      Permitted statutory liens arising in ordinary course and discharged before delinquency are allowed
+
+  Rule R13: Prohibition (inactive at formation)
+    Maria's Bakery LLC → Neighborhood Bank, N.A.: Do not use Equipment for commercial delivery without active commercial auto liability insurance
+    Buyer shall not use the Equipment for commercial delivery unless commercial auto liability insurance and a refrigerated cargo or spoilage endorsement are active.
+    Trigger: When condition precedent holds — Commercial auto liability insurance is not active
+      Threshold: commercial_insurance_active eq false
+
+  Rule R14: Prohibition (inactive at formation)
+    Maria's Bakery LLC → Neighborhood Bank, N.A.: Do not use Equipment for commercial delivery without refrigerated cargo or spoilage endorsement
+    Buyer shall not use the Equipment for commercial delivery unless commercial auto liability insurance and a refrigerated cargo or spoilage endorsement are active.
+    Trigger: When condition precedent holds — Refrigerated cargo or spoilage endorsement is not active
+      Threshold: cargo_endorsement_active eq false
+
+  Rule R15: Obligation (inactive at formation)
+    Maria's Bakery LLC → Neighborhood Bank, N.A.: Provide Lender with evidence of insurance before commercial use
+    Buyer shall provide Lender and Dealer with evidence of insurance before commercial use.
+    Trigger: When condition precedent holds — Before commercial use of Equipment begins
+    Effect: State transition — Lender receives and verifies insurance documentation
+
+  Rule R16: Obligation (inactive at formation)
+    Maria's Bakery LLC → ColdRoad Vans Inc.: Provide Dealer with evidence of insurance before commercial use
+    Buyer shall provide Lender and Dealer with evidence of insurance before commercial use.
+    Trigger: When condition precedent holds — Before commercial use of Equipment begins
+    Effect: State transition — Dealer receives and verifies insurance documentation
+
+  Rule R17: Obligation (inactive at formation)
+    Maria's Bakery LLC → Neighborhood Bank, N.A.: Name Lender as loss payee for physical damage coverage
+    Policies shall name Lender as loss payee for physical damage coverage.
+    Trigger: When condition precedent holds — Before obtaining commercial insurance
+    Effect: State transition — Insurance policy designates Lender as loss payee
+
+  Rule R18: Obligation (inactive at formation)
+    Maria's Bakery LLC → Neighborhood Bank, N.A.: Hold Equipment in delivered-but-uninsured status if delivered before insurance active
+    If the Equipment is delivered before the commercial insurance binder is active, Buyer shall hold the Equipment in a delivered-but-uninsured status and shall not use it for customer deliveries.
+    Trigger: When condition precedent holds — Equipment is delivered AND commercial insurance binder is not active
+      Threshold: insurance_binder_active eq false
+    Effect: State transition — Equipment enters delivered-but-uninsured status
+
+  Rule R19: Prohibition (inactive at formation)
+    Maria's Bakery LLC → Neighborhood Bank, N.A.: Do not use Equipment for customer deliveries if delivered before insurance active
+    If the Equipment is delivered before the commercial insurance binder is active, Buyer shall hold the Equipment in a delivered-but-uninsured status and shall not use it for customer deliveries.
+    Trigger: When condition precedent holds — Equipment is in delivered-but-uninsured status
+      Threshold: equipment_status eq delivered_uninsured
+
+  Rule R2: Obligation (inactive at formation)
+    Maria's Bakery LLC → ColdRoad Vans Inc.: Purchase Equipment from Dealer
+    Dealer agrees to sell, and Buyer agrees to purchase, one 2026 refrigerated delivery van with an integrated refrigeration unit, cargo temperature display, insulation package, rear shelving, and related manuals (collectively, the 'Equipment').
+    Trigger: On date — Agreement effective date
+    Effect: Rule activation — Activates payment obligations
+
+  Rule R23: Obligation (inactive at formation)
+    Maria's Bakery LLC → Neighborhood Bank, N.A.: Pay monthly installment to Lender
+    Buyer shall pay Lender $1,175.00 per month beginning after delivery of the Equipment.
+    Trigger: Upon event — After delivery of Equipment, monthly
+      Duration: 1 month
+    Effect: Payment — Monthly payment of $1,175.00 from Buyer to Lender
+      Formula: 1175
+      From: Maria's Bakery LLC → To: Neighborhood Bank, N.A.
+
+  Rule R25: Obligation (inactive at formation)
+    Maria's Bakery LLC → Neighborhood Bank, N.A.: Make payments without setoff against Lender
+    Buyer shall make payments without setoff against Lender, except to the extent non-waivable law provides otherwise.
+    Trigger: After time period — Each payment due date
+    Constraint: Carve-out
+      Exception where non-waivable law permits setoff
+
+  Rule R26: Obligation (inactive at formation)
+    Maria's Bakery LLC → Neighborhood Bank, N.A.: Maintain Equipment in good working order
+    Buyer shall maintain the Equipment in good working order, keep the refrigeration unit serviced, preserve maintenance records, and use the Equipment in compliance with law, insurance requirements, and manufacturer instructions.
+    Trigger: After time period — Continuously from delivery
+
+  Rule R27: Obligation (inactive at formation)
+    Maria's Bakery LLC → Neighborhood Bank, N.A.: Keep refrigeration unit serviced
+    Buyer shall maintain the Equipment in good working order, keep the refrigeration unit serviced, preserve maintenance records, and use the Equipment in compliance with law, insurance requirements, and manufacturer instructions.
+    Trigger: After time period — Continuously from delivery
+
+  Rule R28: Obligation (inactive at formation)
+    Maria's Bakery LLC → Neighborhood Bank, N.A.: Preserve maintenance records
+    Buyer shall maintain the Equipment in good working order, keep the refrigeration unit serviced, preserve maintenance records, and use the Equipment in compliance with law, insurance requirements, and manufacturer instructions.
+    Trigger: After time period — Continuously from delivery
+
+  Rule R29: Obligation (inactive at formation)
+    Maria's Bakery LLC → Neighborhood Bank, N.A.: Use Equipment in compliance with law, insurance requirements, and manufacturer instructions
+    Buyer shall maintain the Equipment in good working order, keep the refrigeration unit serviced, preserve maintenance records, and use the Equipment in compliance with law, insurance requirements, and manufacturer instructions.
+    Trigger: After time period — Continuously from delivery
+
+  Rule R3: Obligation (inactive at formation)
+    Maria's Bakery LLC → ColdRoad Vans Inc.: Pay down payment at signing
+    Buyer shall pay $8,000.00 as a down payment at signing.
+    Trigger: On date — At signing of Agreement
+    Effect: Payment — Transfer of $8,000.00 down payment
+      Formula: 8000
+      From: Maria's Bakery LLC → To: ColdRoad Vans Inc.
+      Cap: $8,000.00
+
+  Rule R30: Obligation (inactive at formation)
+    Maria's Bakery LLC → Neighborhood Bank, N.A.: Keep Equipment at business location or in ordinary delivery operations
+    Buyer shall keep the Equipment at Buyer's business location or in ordinary delivery operations unless Lender consents to another primary location.
+    Trigger: After time period — Continuously from delivery
+    Constraint: Carve-out
+      Lender may consent to another primary location
+
+  Rule R4: Obligation (inactive at formation)
+    ColdRoad Vans Inc. → Maria's Bakery LLC: Deliver Equipment with complete delivery package
+    Delivery is complete only when Dealer tenders the vehicle, keys, registration documents, refrigeration-unit operating manual, warranty documents, and a delivery acceptance certificate.
+    Trigger: On date — Scheduled delivery date
+    Effect: Asset transfer — Physical delivery of Equipment and all required documents to Buyer
+    Effect: Rule activation — Activates risk of loss transfer and inspection obligation
+    Constraint: Grace period
+      Duration: 5 days
+      Dealer has a five-day grace period after the scheduled delivery date before delay occurs
+
+  Rule R5: Obligation (inactive at formation)
+    ColdRoad Vans Inc. → Maria's Bakery LLC: Deliver Equipment to Premises or mutually agreed location
+    Dealer shall deliver the Equipment to Buyer at the Premises or another mutually agreed location.
+    Trigger: On date — Scheduled delivery date
+    Effect: Asset transfer — Physical delivery of Equipment to designated location
+
+  Rule R8: Obligation (inactive at formation)
+    Maria's Bakery LLC → ColdRoad Vans Inc.: Inspect Equipment on delivery
+    Buyer shall inspect the Equipment on delivery.
+    Trigger: Upon event — Delivery of Equipment occurs
+    Effect: State transition — Inspection performed, Equipment accepted or rejected
+
+STATE TRANSITIONS
+────────────────────────────────────────
+  When in state "Contract signed, down payment due, awaiting delivery":
+
+    On event "down payment made":
+      Buyer makes down payment and receives equipment ownership
+      → Payment: Down payment of $8,000 transferred at signing [down payment]
+      → Asset transfer: Equipment ownership transferred from Dealer to Buyer (R1)
+      Transitions to "Down payment made, equipment ownership transferred, awaiting physical delivery".
+
+    On event "contract terminated":
+      Contract terminates due to breach or other termination condition
+      → Forfeiture: Contract terminated due to breach, default, or other termination event
+      Transitions to "Contract terminated due to breach or other termination event".
+
+  When in state "Down payment made, equipment ownership transferred, awaiting physical delivery":
+
+    On event "contract terminated":
+      Contract terminates due to breach or other termination condition
+      → Forfeiture: Contract terminated due to breach, default, or other termination event
+      Transitions to "Contract terminated due to breach or other termination event".
+
+    On event "scheduled delivery date passed":
+      Scheduled delivery date passes, entering 5-day grace period
+      Transitions to "Scheduled delivery date passed, within 5-day grace period".
+
+    On event "equipment delivered":
+      Guard: insurance active  =  False
+      Equipment delivered but insurance not yet active
+      → Asset transfer: Physical delivery of Equipment with complete delivery package to designated location (R4, R5)
+      Transitions to "Equipment delivered but commercial insurance not yet active, no commercial use allowed".
+
+    On event "equipment delivered":
+      Guard: insurance active  =  True
+      Equipment delivered with insurance already active
+      → Asset transfer: Physical delivery of Equipment with complete delivery package to designated location (R4, R5)
+      Transitions to "Equipment delivered and insured, inspection period, ready for commercial use".
+
+  When in state "Equipment delivered and insured, inspection period, ready for commercial use":
+
+    On event "contract terminated":
+      Contract terminates due to breach or other termination condition
+      → Forfeiture: Contract terminated due to breach, default, or other termination event
+      Transitions to "Contract terminated due to breach or other termination event".
+
+    On event "equipment inspected accepted":
+      Buyer inspects and accepts equipment, operational phase begins
+      Transitions to "Equipment inspected and accepted, monthly payments active, operational obligations ongoing".
+
+    On event "equipment inspected rejected":
+      Buyer inspects and rejects equipment
+      → Forfeiture: Buyer rejects equipment on inspection, contract may terminate per rejection terms
+      Transitions to "Contract terminated due to breach or other termination event".
+
+  When in state "Equipment delivered but commercial insurance not yet active, no commercial use allowed":
+
+    On event "contract terminated":
+      Contract terminates due to breach or other termination condition
+      → Forfeiture: Contract terminated due to breach, default, or other termination event
+      Transitions to "Contract terminated due to breach or other termination event".
+
+    On event "insurance activated":
+      Commercial insurance binder becomes active, equipment ready for commercial use
+      Transitions to "Equipment delivered and insured, inspection period, ready for commercial use".
+
+  When in state "Scheduled delivery date passed, within 5-day grace period":
+
+    On event "contract terminated":
+      Contract terminates due to breach or other termination condition
+      → Forfeiture: Contract terminated due to breach, default, or other termination event
+      Transitions to "Contract terminated due to breach or other termination event".
+
+    On event "equipment delivered":
+      Guard: insurance active  =  False
+      Equipment delivered but insurance not yet active
+      → Asset transfer: Physical delivery of Equipment with complete delivery package to designated location (R4, R5)
+      Transitions to "Equipment delivered but commercial insurance not yet active, no commercial use allowed".
+
+    On event "equipment delivered":
+      Guard: insurance active  =  True
+      Equipment delivered with insurance already active
+      → Asset transfer: Physical delivery of Equipment with complete delivery package to designated location (R4, R5)
+      Transitions to "Equipment delivered and insured, inspection period, ready for commercial use".
+
+  When in state "Equipment inspected and accepted, monthly payments active, operational obligations ongoing":
+
+    On event "contract terminated":
+      Contract terminates due to breach or other termination condition
+      → Forfeiture: Contract terminated due to breach, default, or other termination event
+      Transitions to "Contract terminated due to breach or other termination event".
+
+    On event "monthly payment made":
+      Buyer makes monthly installment payment
+      → Payment: Monthly installment payment of $1,175 to Lender (R23) [monthly payment]
+      Remains in "Equipment inspected and accepted, monthly payments active, operational obligations ongoing".
+
+    On event "final payment made":
+      Buyer makes final payment, all obligations fulfilled
+      → Payment: Final monthly installment payment completing financing obligation [monthly payment]
+      Transitions to "All installments paid, contract obligations completed".
+
+UNMODELED RULES
+────────────────────────────────────────
+  The following rules could not be formally modeled:
+
+  R11: [Power] Buyer authorizes Lender to file financing statements and other records necessary or advisable to perfect Lender's security interest.
+    Reason: POWER is not in the four mappable primitives
+
+  R20: [Permission] Buyer may designate the Equipment as placed in business delivery service only after all of the following are true: (a) Dealer has delivered the Equipment; (b) commercial insurance is active; (c) the Equipment is available for regular bakery delivery use; and (d) more than 50% of its expected use is bakery business use.
+    Reason: PERMISSION is not in the four mappable primitives
+
+  R21: [Representation] This Agreement records operational facts only. Neither Dealer nor Lender gives tax advice or determines Buyer's eligibility for any deduction, credit, depreciation, or expensing treatment.
+    Reason: REPRESENTATION is not in the four mappable primitives
+
+  R22: [Representation] This Agreement records operational facts only. Neither Dealer nor Lender gives tax advice or determines Buyer's eligibility for any deduction, credit, depreciation, or expensing treatment.
+    Reason: REPRESENTATION is not in the four mappable primitives
+
+  R24: [Covenant] Payments may be applied to fees, interest, principal, protective advances, and enforcement costs in the order permitted by the financing documents and applicable law.
+    Reason: COVENANT is not in the four mappable primitives
+
+  R31: [Power] Buyer shall keep the Equipment at Buyer's business location or in ordinary delivery operations unless Lender consents to another primary location.
+    Reason: POWER is not in the four mappable primitives
+
+  R32: [Covenant] Risk of loss passes to Buyer on delivery acceptance.
+    Reason: COVENANT is not in the four mappable primitives
+
+  R33: [Immunity] Loss, damage, theft, or interruption of use does not excuse Buyer's payment obligations.
+    Reason: IMMUNITY is not in the four mappable primitives
+
+  R34: [Representation] Each of the following is an event of default: (a) Buyer fails to pay an amount when due.
+    Reason: REPRESENTATION is not in the four mappable primitives
+
+  R35: [Representation] Each of the following is an event of default: (b) Buyer uses the Equipment commercially before required insurance is active.
+    Reason: REPRESENTATION is not in the four mappable primitives
+
+  R36: [Representation] Each of the following is an event of default: (c) Buyer grants or permits an unauthorized lien.
+    Reason: REPRESENTATION is not in the four mappable primitives
+
+  R37: [Representation] Each of the following is an event of default: (d) Buyer materially misrepresents the Equipment's use, location, or insurance.
+    Reason: REPRESENTATION is not in the four mappable primitives
+
+  R38: [Representation] Each of the following is an event of default: (e) Buyer fails to maintain or protect the Equipment.
+    Reason: REPRESENTATION is not in the four mappable primitives
+
+  R39: [Power] Upon default, Lender may accelerate unpaid amounts, require immediate payment, take possession of the Equipment as permitted by law, enforce its security interest, apply insurance proceeds, and recover reasonable enforcement costs.
+    Reason: POWER is not in the four mappable primitives
+
+  R40: [Power] Upon default, Lender may accelerate unpaid amounts, require immediate payment, take possession of the Equipment as permitted by law, enforce its security interest, apply insurance proceeds, and recover reasonable enforcement costs.
+    Reason: POWER is not in the four mappable primitives
+
+  R41: [Power] Upon default, Lender may accelerate unpaid amounts, require immediate payment, take possession of the Equipment as permitted by law, enforce its security interest, apply insurance proceeds, and recover reasonable enforcement costs.
+    Reason: POWER is not in the four mappable primitives
+
+  R42: [Power] Upon default, Lender may accelerate unpaid amounts, require immediate payment, take possession of the Equipment as permitted by law, enforce its security interest, apply insurance proceeds, and recover reasonable enforcement costs.
+    Reason: POWER is not in the four mappable primitives
+
+  R43: [Power] Upon default, Lender may accelerate unpaid amounts, require immediate payment, take possession of the Equipment as permitted by law, enforce its security interest, apply insurance proceeds, and recover reasonable enforcement costs.
+    Reason: POWER is not in the four mappable primitives
+
+  R44: [Power] Upon default, Lender may accelerate unpaid amounts, require immediate payment, take possession of the Equipment as permitted by law, enforce its security interest, apply insurance proceeds, and recover reasonable enforcement costs.
+    Reason: POWER is not in the four mappable primitives
+
+  R45: [Power] Dealer may suspend any open warranty service to the extent permitted by law if Buyer has failed to pay amounts owed to Dealer.
+    Reason: POWER is not in the four mappable primitives
+
+  R46: [Covenant] Dealer assigns to Buyer available manufacturer warranties for the vehicle and refrigeration unit.
+    Reason: COVENANT is not in the four mappable primitives
+
+  R47: [Representation] Dealer gives no warranty beyond the express written warranties delivered with the Equipment.
+    Reason: REPRESENTATION is not in the four mappable primitives
+
+  R48: [Covenant] This Agreement binds the parties and their permitted successors.
+    Reason: COVENANT is not in the four mappable primitives
+
+  R49: [Covenant] This Agreement binds the parties and their permitted successors.
+    Reason: COVENANT is not in the four mappable primitives
+
+  R50: [Covenant] This Agreement binds the parties and their permitted successors.
+    Reason: COVENANT is not in the four mappable primitives
+
+  R51: [Covenant] Amendments must be in writing.
+    Reason: COVENANT is not in the four mappable primitives
+
+  R52: [Covenant] Electronic signatures are effective.
+    Reason: COVENANT is not in the four mappable primitives
+
+  R53: [Covenant] California law governs except to the extent federal law applies to Lender.
+    Reason: COVENANT is not in the four mappable primitives
+
+  R6: [Representation] Delivery after the grace period is a Dealer delay, but delay does not excuse Buyer from payment obligations once Buyer accepts delivery.
+    Reason: REPRESENTATION is not in the four mappable primitives
+
+  R7: [Immunity] Delay does not excuse Buyer from payment obligations once Buyer accepts delivery.
+    Reason: IMMUNITY is not in the four mappable primitives
+
+  R9: [Immunity] Acceptance does not waive latent defects or warranty claims.
+    Reason: IMMUNITY is not in the four mappable primitives
+
+================================================================
+END OF CONTRACT
+================================================================
