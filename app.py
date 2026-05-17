@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
-"""HTTP server for the Contract FSM Console — upload contracts, visualize FSMs, ask questions."""
+"""HTTP server for Babel — upload contracts, visualize FSMs, ask questions."""
 from __future__ import annotations
 
 import argparse
 import json
+import re
+import shutil
+import subprocess
 import threading
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date
 from decimal import Decimal
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 try:
     from dotenv import load_dotenv
@@ -20,7 +25,67 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parent
 UI_PATH = ROOT / "ui.html"
-OUTPUT_DIR = ROOT / "output"
+OUTPUT_DIR = ROOT / ".runtime_output"
+GBRAIN_ROOT = ROOT / "gbrain_pages"
+GBRAIN_FSM_DIR = GBRAIN_ROOT / "contract_fsm"
+GBRAIN_RUN_DIR = GBRAIN_ROOT / "agent_runs"
+GBRAIN_TIMEOUT_SECONDS = 30
+
+AGENT_PROFILES = [
+    {
+        "id": "fraught",
+        "name": "Fraught / Risk Agent",
+        "focus": "failure modes, defaults, fragility, termination paths, blocked transitions",
+        "query_terms": "risk default cure termination force majeure breach blocked infeasible",
+        "system": (
+            "You are the Fraught / Risk Agent. You specialize in what can go wrong: "
+            "defaults, operational fragility, blocked states, termination, cure periods, "
+            "force majeure, and hidden failure modes."
+        ),
+    },
+    {
+        "id": "shipping",
+        "name": "Shipping / Operations Agent",
+        "focus": "delivery performance, logistics, timing, routes, supplier and vehicle operations",
+        "query_terms": "shipping delivery route supplier vehicle deadline milestone late on-time",
+        "system": (
+            "You are the Shipping / Operations Agent. You specialize in delivery, logistics, "
+            "routes, timing, supplier performance, vehicles, and practical operational execution."
+        ),
+    },
+    {
+        "id": "legal",
+        "name": "Legal / Remedies Agent",
+        "focus": "contract rights, remedies, notice, cure, consent, enforcement mechanics",
+        "query_terms": "legal remedy notice cure consent obligation prohibition warranty covenant",
+        "system": (
+            "You are the Legal / Remedies Agent. You specialize in contract rights, remedies, "
+            "notice, cure, consent, warranties, covenants, and what the FSM actually authorizes. "
+            "You are not giving legal advice; you are analyzing the executable contract model."
+        ),
+    },
+    {
+        "id": "ip",
+        "name": "IP / Data Agent",
+        "focus": "ownership, intellectual property, confidential information, brand, data, assignment",
+        "query_terms": "intellectual property IP data confidentiality brand ownership assignment license",
+        "system": (
+            "You are the IP / Data Agent. You specialize in IP, ownership, brand, confidential "
+            "information, licensing, assignment, and data rights. If the FSMs do not encode an IP issue, "
+            "say that clearly and identify the nearest related clauses."
+        ),
+    },
+    {
+        "id": "finance",
+        "name": "Finance / Commercial Agent",
+        "focus": "payments, incentives, penalties, caps, credits, rebates, cash timing",
+        "query_terms": "payment penalty incentive rebate credit cap holdback cash amount formula",
+        "system": (
+            "You are the Finance / Commercial Agent. You specialize in monetary outcomes, "
+            "payment timing, penalties, rebates, caps, credits, incentives, and cash exposure."
+        ),
+    },
+]
 
 
 def _json_default(obj):
@@ -43,8 +108,25 @@ def _load_existing_fsms() -> dict[str, dict]:
     return contracts
 
 
+def _clear_runtime_state() -> None:
+    """Start each app run without stale uploaded contracts or app-written GBrain pages."""
+    for page_dir in (GBRAIN_FSM_DIR, GBRAIN_RUN_DIR):
+        if page_dir.is_dir():
+            for page in page_dir.glob("*.md"):
+                for slug in {page.stem, _safe_slug(page.stem), f"{page_dir.name}/{page.stem}"}:
+                    _gbrain_cli(["delete", slug], timeout=10)
+
+    for path in (OUTPUT_DIR, GBRAIN_FSM_DIR, GBRAIN_RUN_DIR):
+        if path.exists():
+            shutil.rmtree(path)
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
 _contracts: dict[str, dict] = {}
 _lock = threading.Lock()
+_gbrain_lock = threading.Lock()
+_gbrain_status: dict = {"available": False, "output": "GBrain has not been synced yet."}
 
 
 def _fsm_to_dict(fsm) -> dict:
@@ -95,32 +177,201 @@ def _fsm_to_dict(fsm) -> dict:
     }
 
 
-def _gbrain_search(question: str, fsm_context: str = "") -> dict:
-    """Step 1: Generate candidate suggestions informed by both FSM context and broad knowledge."""
+def _safe_slug(value: str) -> str:
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", value.strip().lower()).strip("-")
+    return slug or "contract"
+
+
+def _command_output(result: subprocess.CompletedProcess) -> str:
+    output = "\n".join(part for part in [result.stdout.strip(), result.stderr.strip()] if part)
+    return output.strip()
+
+
+def _run_command(args: list[str], timeout: int = GBRAIN_TIMEOUT_SECONDS) -> dict:
     try:
-        import anthropic
-        client = anthropic.Anthropic()
-        fsm_section = f"\n\nContract FSM context:\n{fsm_context}" if fsm_context else ""
-        msg = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=512,
-            system=(
-                "You are a knowledgeable business and financial advisor with expertise in contracts. "
-                "You will be given a question and the relevant contract FSM data (states, transitions, rules). "
-                "Generate a numbered list of concrete, actionable suggestions informed by both "
-                "the contract structure and broader business/financial knowledge. "
-                "Your suggestions should be grounded in what the contract describes — "
-                "use the parties, amounts, states, and obligations as context for what options exist. "
-                "Do not filter for feasibility yet; a strict FSM validation step follows."
-            ),
-            messages=[{"role": "user", "content": f"Question: {question}{fsm_section}"}],
+        result = subprocess.run(
+            args,
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+            check=False,
         )
-        output = msg.content[0].text
-        return {"available": True, "output": output}
-    except ImportError:
-        return {"available": False, "output": "Anthropic SDK not available."}
+        output = _command_output(result)
+        return {
+            "available": result.returncode == 0,
+            "returncode": result.returncode,
+            "output": output or "(no output)",
+        }
+    except FileNotFoundError:
+        return {"available": False, "returncode": 127, "output": f"{args[0]} is not installed."}
+    except subprocess.TimeoutExpired:
+        return {"available": False, "returncode": 124, "output": f"{args[0]} timed out."}
     except Exception as exc:
-        return {"available": False, "output": str(exc)}
+        return {"available": False, "returncode": 1, "output": str(exc)}
+
+
+def _gbrain_cli(args: list[str], timeout: int = GBRAIN_TIMEOUT_SECONDS) -> dict:
+    if not shutil.which("gbrain"):
+        return {
+            "available": False,
+            "returncode": 127,
+            "output": "gbrain CLI is not installed or not on PATH.",
+        }
+    return _run_command(["gbrain", *args], timeout=timeout)
+
+
+def _truncate_text(text: str, max_chars: int = 6000) -> str:
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars].rstrip() + "\n\n[truncated]"
+
+
+def _contract_to_gbrain_markdown(cid: str, fsm: dict) -> str:
+    params = fsm.get("params", {}) or {}
+    amounts = params.get("amounts") or {}
+    states = fsm.get("states", [])
+    transitions = fsm.get("transitions", [])
+    rules = fsm.get("rules", [])
+    unmappable = fsm.get("unmappable_rules", [])
+
+    state_lines = "\n".join(
+        f"- `{s.get('id')}`: {s.get('description', '')}"
+        + (" (terminal)" if s.get("terminal") else "")
+        for s in states
+    ) or "- None"
+    transition_lines = "\n".join(
+        f"- `{t.get('id')}`: `{', '.join(t.get('from_states') or [])}` "
+        f"--{t.get('event_type')}--> `{t.get('to_state')}`"
+        + (f" when `{t.get('guard')}`" if t.get("guard") else "")
+        + (f". {t.get('description')}" if t.get("description") else "")
+        for t in transitions
+    ) or "- None"
+    rule_lines = "\n".join(
+        f"- `{r.get('id')}` [{r.get('type')}]: {r.get('party')} -> {r.get('counterparty')}; "
+        f"{r.get('action')}. {r.get('description') or ''}"
+        for r in rules
+    ) or "- None"
+    unmappable_lines = "\n".join(
+        f"- `{r.get('id')}` [{r.get('type')}]: {r.get('description') or r.get('action')}; "
+        f"reason: {r.get('unmappable_reason') or 'not mapped'}"
+        for r in unmappable
+    ) or "- None"
+    amount_lines = "\n".join(f"- `{key}`: {value}" for key, value in amounts.items()) or "- None"
+
+    return (
+        "---\n"
+        "type: contract_fsm\n"
+        f"title: {cid}\n"
+        "tags: [contract-fsm, babel, shared-gbrain-memory]\n"
+        "---\n\n"
+        f"# {cid}\n\n"
+        "Compiled truth: this page is the shared GBrain memory representation of one "
+        "finite state machine contract. Specialist agents should use it as context, "
+        "then validate suggested scenarios against the executable FSM states, transitions, and rules.\n\n"
+        f"- Contract ID: `{fsm.get('contract_id', cid)}`\n"
+        f"- Parties: {', '.join(fsm.get('parties', [])) or 'Unknown'}\n"
+        f"- Initial state: `{fsm.get('initial_state')}`\n"
+        f"- State count: {len(states)}\n"
+        f"- Transition count: {len(transitions)}\n"
+        f"- Rule count: {len(rules)}\n\n"
+        "## Commercial Amounts\n"
+        f"{amount_lines}\n\n"
+        "## States\n"
+        f"{state_lines}\n\n"
+        "## Transitions\n"
+        f"{transition_lines}\n\n"
+        "## Rules\n"
+        f"{rule_lines}\n\n"
+        "## Unmappable Rules\n"
+        f"{unmappable_lines}\n\n"
+        "---\n\n"
+        f"- {date.today().isoformat()}: Synced from uploaded contract FSM JSON into GBrain memory.\n\n"
+        "## Raw FSM JSON\n"
+        "```json\n"
+        f"{json.dumps(fsm, indent=2, default=_json_default)}\n"
+        "```\n"
+    )
+
+
+def _write_gbrain_contract_pages(contracts: dict[str, dict]) -> list[Path]:
+    GBRAIN_FSM_DIR.mkdir(parents=True, exist_ok=True)
+    for old_page in GBRAIN_FSM_DIR.glob("*.md"):
+        old_page.unlink()
+
+    written = []
+    for cid, fsm in sorted(contracts.items()):
+        path = GBRAIN_FSM_DIR / f"{_safe_slug(cid)}.md"
+        path.write_text(_contract_to_gbrain_markdown(cid, fsm))
+        written.append(path)
+    return written
+
+
+def _sync_contracts_to_gbrain(contracts: dict[str, dict]) -> dict:
+    global _gbrain_status
+    with _gbrain_lock:
+        if not contracts:
+            _gbrain_status = {
+                "available": False,
+                "output": "No FSMs loaded, so there is nothing to sync into GBrain.",
+            }
+            return dict(_gbrain_status)
+
+        pages = _write_gbrain_contract_pages(contracts)
+        result = _gbrain_cli(["import", str(GBRAIN_FSM_DIR), "--no-embed", "--json"], timeout=60)
+        output = (
+            f"Synced {len(pages)} FSM page(s) into GBrain from {GBRAIN_FSM_DIR.relative_to(ROOT)}.\n"
+            f"{result.get('output', '')}"
+        )
+        _gbrain_status = {
+            "available": bool(result.get("available")),
+            "output": output.strip(),
+            "page_count": len(pages),
+            "path": str(GBRAIN_FSM_DIR.relative_to(ROOT)),
+        }
+        return dict(_gbrain_status)
+
+
+def _gbrain_memory_search(question: str, focus: str = "") -> dict:
+    query = question.strip() or focus.strip() or "uploaded contract FSM"
+    query = query[:700]
+    result = _gbrain_cli(["search", query], timeout=GBRAIN_TIMEOUT_SECONDS)
+    output = result.get("output", "")
+    if result.get("available") and output.strip() and output.strip() != "No results.":
+        return {
+            "available": True,
+            "query": query,
+            "output": _truncate_text(output),
+            "returncode": result.get("returncode"),
+        }
+
+    fallback_pages = []
+    for page in sorted(GBRAIN_FSM_DIR.glob("*.md")):
+        get_result = _gbrain_cli(["get", page.stem], timeout=GBRAIN_TIMEOUT_SECONDS)
+        if get_result.get("available") and get_result.get("output"):
+            fallback_pages.append(
+                f"## {page.stem}\n{_truncate_text(get_result['output'], max_chars=1800)}"
+            )
+
+    if fallback_pages:
+        output = (
+            f"GBrain search for `{query}` returned no direct hits, so this agent loaded "
+            "the canonical imported FSM memory pages by slug.\n\n"
+            + "\n\n".join(fallback_pages)
+        )
+        return {
+            "available": True,
+            "query": query,
+            "output": _truncate_text(output),
+            "returncode": result.get("returncode"),
+        }
+
+    return {
+        "available": bool(result.get("available")),
+        "query": query,
+        "output": output,
+        "returncode": result.get("returncode"),
+    }
 
 
 def _build_fsm_context(contracts: dict[str, dict]) -> str:
@@ -154,49 +405,180 @@ def _build_fsm_context(contracts: dict[str, dict]) -> str:
     return "\n\n---\n\n".join(parts)
 
 
-def _ask_llm(question: str, contracts: dict[str, dict], gbrain_suggestions: str = "") -> str:
-    """Step 2: Cross-reference GBrain suggestions against FSMs and return only feasible ones."""
+def _message_text(message) -> str:
+    return "\n".join(
+        getattr(block, "text", "")
+        for block in getattr(message, "content", [])
+        if getattr(block, "type", "text") == "text"
+    ).strip()
+
+
+def _run_specialist_agent(profile: dict, question: str, contracts: dict[str, dict]) -> dict:
+    memory = _gbrain_memory_search(
+        question,
+        f"{profile['focus']} {profile['query_terms']}",
+    )
+
     try:
         import anthropic
         client = anthropic.Anthropic()
-
-        ctx = _build_fsm_context(contracts)
-
-        if gbrain_suggestions:
-            user_content = (
-                f"Contract FSMs:\n\n{ctx}\n\n"
-                f"---\n\n"
-                f"GBrain candidate suggestions for: \"{question}\"\n\n"
-                f"{gbrain_suggestions}\n\n"
-                f"---\n\n"
-                f"For each suggestion above, determine whether it is feasible given the contract FSMs. "
-                f"A suggestion is feasible only if the required states, transitions, and rules exist "
-                f"to support it playing out within the contract terms. "
-                f"For feasible suggestions, cite the specific FSM states/transitions/rules that enable it. "
-                f"For infeasible suggestions, explain which FSM constraint blocks it. "
-                f"End with a clear recommendation of which option(s) to pursue and why."
-            )
-        else:
-            user_content = f"Contract FSMs:\n\n{ctx}\n\nQuestion: {question}"
-
-        system = (
-            "You are a strict contract analyst. Your job is to validate suggestions against "
-            "contract finite state machines. Never recommend an action that cannot be traced "
-            "through the FSM's states, transitions, and rules. Be precise: cite FSM IDs. "
-            "If no suggestions are feasible, say so plainly and explain why."
-        )
-
         msg = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=1500,
-            system=system,
-            messages=[{"role": "user", "content": user_content}],
+            max_tokens=700,
+            system=(
+                f"{profile['system']} You are one of several specialist agents sharing the same "
+                "GBrain memory. Use the GBrain search results as memory, then check any claim "
+                "against the loaded finite state machines. Use state, transition, and rule IDs only "
+                "for your internal validation; do not expose raw IDs, variable names, or all-caps "
+                "state names in the user-facing bullets. "
+                "Do not invent missing clauses. No AI fluff, no setup, no methodology. "
+                "Return only short, direct bullet sentences for a small-business owner."
+            ),
+            messages=[{
+                "role": "user",
+                "content": (
+                    f"Question:\n{question}\n\n"
+                    f"Your focus:\n{profile['focus']}\n\n"
+                    f"Shared GBrain memory search query:\n{memory.get('query')}\n\n"
+                    f"Shared GBrain memory results:\n{memory.get('output') or 'No GBrain hits.'}\n\n"
+                    f"Loaded FSM context:\n{_build_fsm_context(contracts)}\n\n"
+                    "Return exactly 4 concise bullet sentences. No headings, no intro, "
+                    "no tables, no labels like 'specialist read'. Each bullet must directly answer "
+                    "the question from your expert focus in plain English. Do not include raw IDs like "
+                    "C_..., TR..., R..., variable names, or all-caps state names."
+                ),
+            }],
         )
-        return msg.content[0].text
+        output = _message_text(msg)
+        available = True
+    except ImportError:
+        output = "Anthropic SDK not available. Install with: pip install anthropic"
+        available = False
+    except Exception as exc:
+        output = f"Error querying specialist agent: {exc}"
+        available = False
+
+    return {
+        "id": profile["id"],
+        "name": profile["name"],
+        "focus": profile["focus"],
+        "available": available,
+        "memory": memory,
+        "output": output,
+    }
+
+
+def _run_specialist_agents(question: str, contracts: dict[str, dict]) -> list[dict]:
+    agents: list[dict] = []
+    with ThreadPoolExecutor(max_workers=len(AGENT_PROFILES)) as executor:
+        futures = {
+            executor.submit(_run_specialist_agent, profile, question, contracts): profile
+            for profile in AGENT_PROFILES
+        }
+        for future in as_completed(futures):
+            try:
+                agents.append(future.result())
+            except Exception as exc:
+                profile = futures[future]
+                agents.append({
+                    "id": profile["id"],
+                    "name": profile["name"],
+                    "focus": profile["focus"],
+                    "available": False,
+                    "memory": {"available": False, "output": ""},
+                    "output": f"Agent failed: {exc}",
+                })
+
+    order = {profile["id"]: index for index, profile in enumerate(AGENT_PROFILES)}
+    return sorted(agents, key=lambda agent: order.get(agent["id"], 999))
+
+
+def _synthesize_agents(question: str, contracts: dict[str, dict], agents: list[dict]) -> str:
+    agent_context = "\n\n".join(
+        f"## {agent['name']}\n"
+        f"Focus: {agent['focus']}\n"
+        f"GBrain query: {agent.get('memory', {}).get('query', '')}\n"
+        f"GBrain results:\n{agent.get('memory', {}).get('output', '')}\n\n"
+        f"Agent output:\n{agent.get('output', '')}"
+        for agent in agents
+    )
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic()
+        msg = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=800,
+            system=(
+                "You are the synthesizer for a multi-agent contract FSM system. "
+                "The specialist agents all queried the same GBrain memory, but the final answer "
+                "must be grounded in the executable FSMs. Recommend only scenarios that can actually "
+                "play out through available states, transitions, and rules. Use IDs only internally; "
+                "do not expose raw IDs, variable names, or all-caps state names. If agents disagree, "
+                "resolve the disagreement by prioritizing the FSM validation path. Write for a busy "
+                "mom-and-pop business owner. No AI fluff, no intro, no legal essay, no methodology. "
+                "Only concise plain-English bullets that directly answer the user's question."
+            ),
+            messages=[{
+                "role": "user",
+                "content": (
+                    f"User question:\n{question}\n\n"
+                    f"Loaded FSM context:\n{_build_fsm_context(contracts)}\n\n"
+                    f"Specialist agent outputs:\n{agent_context}\n\n"
+                    "Return exactly 3-4 short bullet sentences. No headings, no intro, no tables, "
+                    "no 'final answer' label, no memory note. Each bullet must directly answer the "
+                    "user's question and include the practical action or warning in plain English. "
+                    "Do not include raw FSM IDs, variable names, or all-caps state names."
+                ),
+            }],
+        )
+        return _message_text(msg)
     except ImportError:
         return "Anthropic SDK not available. Install with: pip install anthropic"
     except Exception as exc:
-        return f"Error querying LLM: {exc}"
+        return f"Error synthesizing agents: {exc}"
+
+
+def _persist_agent_run(question: str, agents: list[dict], answer: str) -> dict:
+    GBRAIN_RUN_DIR.mkdir(parents=True, exist_ok=True)
+    run_id = f"{time.strftime('%Y%m%d-%H%M%S')}-{_safe_slug(question)[:48]}"
+    path = GBRAIN_RUN_DIR / f"{run_id}.md"
+    agent_sections = "\n\n".join(
+        f"## {agent['name']}\n\n"
+        f"Focus: {agent['focus']}\n\n"
+        f"GBrain query: `{agent.get('memory', {}).get('query', '')}`\n\n"
+        "### GBrain Hits\n"
+        f"{agent.get('memory', {}).get('output', '') or 'No hits.'}\n\n"
+        "### Agent Output\n"
+        f"{agent.get('output', '')}"
+        for agent in agents
+    )
+
+    path.write_text(
+        "---\n"
+        "type: agent_run\n"
+        f"title: Multi-agent FSM synthesis {run_id}\n"
+        "tags: [contract-fsm, babel, agent-run, shared-gbrain-memory]\n"
+        "---\n\n"
+        f"# Multi-agent FSM synthesis: {question}\n\n"
+        "Compiled truth: this page records one multi-agent run over the uploaded contract FSM memory. "
+        "Future specialist agents should search this run when answering related questions.\n\n"
+        "## Question\n"
+        f"{question}\n\n"
+        "## Final Synthesis\n"
+        f"{answer}\n\n"
+        "## Specialist Agent Outputs\n"
+        f"{agent_sections}\n\n"
+        "---\n\n"
+        f"- {date.today().isoformat()}: Written back after specialist agents shared GBrain memory and synthesized an FSM-validated answer.\n"
+    )
+
+    result = _gbrain_cli(["import", str(GBRAIN_RUN_DIR), "--no-embed", "--json"], timeout=60)
+    return {
+        "available": bool(result.get("available")),
+        "path": str(path.relative_to(ROOT)),
+        "output": result.get("output", ""),
+    }
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -209,6 +591,21 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def _send_sse_headers(self):
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "keep-alive")
+        self.end_headers()
+
+    def _send_sse_event(self, event: str, payload: dict):
+        body = (
+            f"event: {event}\n"
+            f"data: {json.dumps(payload, default=_json_default)}\n\n"
+        ).encode()
+        self.wfile.write(body)
+        self.wfile.flush()
 
     def _send_html(self, text):
         body = text.encode()
@@ -225,13 +622,17 @@ class Handler(BaseHTTPRequestHandler):
     # ── GET ────────────────────────────────────────────────────────────────────
 
     def do_GET(self):  # noqa: N802
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
         if path in ("/", "/index.html"):
             self._send_html(UI_PATH.read_text())
             return
         if path == "/favicon.ico":
             self.send_response(HTTPStatus.NO_CONTENT)
             self.end_headers()
+            return
+        if path == "/api/ask/stream":
+            self._handle_ask_stream(parsed.query)
             return
         if path == "/api/contracts":
             with _lock:
@@ -334,7 +735,11 @@ class Handler(BaseHTTPRequestHandler):
                             "ok": False, "error": str(exc),
                         })
 
-            self._send_json({"results": results})
+            with _lock:
+                contracts = dict(_contracts)
+            gbrain = _sync_contracts_to_gbrain(contracts)
+
+            self._send_json({"results": results, "gbrain": gbrain})
         except Exception as exc:
             self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
 
@@ -348,17 +753,108 @@ class Handler(BaseHTTPRequestHandler):
             with _lock:
                 contracts = dict(_contracts)
 
-            fsm_context = _build_fsm_context(contracts)
-            gbrain = _gbrain_search(question, fsm_context)
-            answer = _ask_llm(question, contracts, gbrain.get("output", ""))
+            gbrain = _sync_contracts_to_gbrain(contracts)
+            agents = _run_specialist_agents(question, contracts)
+            answer = _synthesize_agents(question, contracts, agents)
+            memory_write = _persist_agent_run(question, agents, answer)
 
             self._send_json({
                 "question": question,
                 "answer": answer,
                 "gbrain": gbrain,
+                "agents": agents,
+                "memory_write": memory_write,
             })
         except Exception as exc:
             self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+
+    def _handle_ask_stream(self, query: str):
+        self._send_sse_headers()
+
+        def emit(event: str, payload: dict):
+            self._send_sse_event(event, payload)
+
+        try:
+            params = parse_qs(query)
+            question = (params.get("question", [""])[0] or "").strip()
+            if not question:
+                emit("server_error", {"error": "question is required"})
+                return
+
+            with _lock:
+                contracts = dict(_contracts)
+
+            emit("status", {
+                "stage": "gbrain_sync",
+                "message": "Loading the contract memory.",
+            })
+            gbrain = _sync_contracts_to_gbrain(contracts)
+            emit("gbrain", gbrain)
+
+            emit("status", {
+                "stage": "fanout",
+                "message": f"Asking {len(AGENT_PROFILES)} specialist agents.",
+            })
+
+            agents: list[dict] = []
+            with ThreadPoolExecutor(max_workers=len(AGENT_PROFILES)) as executor:
+                futures = {}
+                for profile in AGENT_PROFILES:
+                    emit("agent_start", {
+                        "id": profile["id"],
+                        "name": profile["name"],
+                        "focus": profile["focus"],
+                        "message": "Reading GBrain and checking contract paths.",
+                    })
+                    futures[executor.submit(_run_specialist_agent, profile, question, contracts)] = profile
+
+                for future in as_completed(futures):
+                    profile = futures[future]
+                    try:
+                        agent = future.result()
+                    except Exception as exc:
+                        agent = {
+                            "id": profile["id"],
+                            "name": profile["name"],
+                            "focus": profile["focus"],
+                            "available": False,
+                            "memory": {"available": False, "output": ""},
+                            "output": f"Agent failed: {exc}",
+                        }
+                    agents.append(agent)
+                    emit("agent_done", agent)
+
+            order = {profile["id"]: index for index, profile in enumerate(AGENT_PROFILES)}
+            agents = sorted(agents, key=lambda agent: order.get(agent["id"], 999))
+
+            emit("status", {
+                "stage": "validation",
+                "message": "Checking that the recommended move can actually happen in the contract map.",
+            })
+            answer = _synthesize_agents(question, contracts, agents)
+            emit("answer", {"answer": answer})
+
+            emit("status", {
+                "stage": "writeback",
+                "message": "Saving this answer to shared memory.",
+            })
+            memory_write = _persist_agent_run(question, agents, answer)
+            emit("memory_write", memory_write)
+
+            emit("done", {
+                "question": question,
+                "answer": answer,
+                "gbrain": gbrain,
+                "agents": agents,
+                "memory_write": memory_write,
+            })
+        except BrokenPipeError:
+            return
+        except Exception as exc:
+            try:
+                emit("server_error", {"error": str(exc)})
+            except BrokenPipeError:
+                return
 
     def log_message(self, fmt, *args):
         print(f"{self.address_string()} - {fmt % args}")
@@ -371,11 +867,14 @@ def main() -> int:
     args = ap.parse_args()
 
     global _contracts
+    _clear_runtime_state()
     _contracts = _load_existing_fsms()
+    gbrain = _sync_contracts_to_gbrain(_contracts)
 
     httpd = ThreadingHTTPServer((args.host, args.port), Handler)
-    print(f"Contract FSM Console: http://{args.host}:{args.port}")
-    print(f"Loaded {len(_contracts)} existing contract(s) from output/")
+    print(f"Babel: http://{args.host}:{args.port}")
+    print(f"Started fresh with {len(_contracts)} uploaded contract(s).")
+    print(f"GBrain: {gbrain.get('output', 'not synced').splitlines()[0]}")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

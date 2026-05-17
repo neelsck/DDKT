@@ -2,6 +2,17 @@
 
 Contracts as finite state machines — extracted by LLM, executed deterministically, decompiled to English.
 
+## Babel UI
+
+Babel is the hackathon-facing app for asking plain-English questions across uploaded contract FSMs. It fans out to specialist agents, lets them read shared GBrain memory, validates the answer against the executable FSMs, and returns a short owner-friendly answer.
+
+```bash
+pip install -r requirements.txt
+python3 app.py
+```
+
+Open `http://127.0.0.1:8000`, upload any contract `.txt`, `.md`, or FSM `.json`, then ask what to do next. Babel starts with no preloaded contracts on every run so reviewers can test arbitrary contracts without stale demo context.
+
 
 ## Quickstart
 
@@ -31,8 +42,6 @@ python contract.py scenario.json
 open contract-fsm/visualizer.html
 # paste fsm.json into box 1, execution_result.json into box 2
 ```
-
-**Pre-computed output** (no API key needed to inspect): `output/ORBCOMM-*/` and `output/trap_orphan_voided_procedure/`.
 
 **Use the FSM to ground an LLM.** Feed `fsm.json` as structured context to any LLM so it can answer questions about the contract with precision — which states exist, what triggers a penalty, what the caps are — without hallucinating from prose.
 

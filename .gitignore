@@ -3,3 +3,6 @@ __pycache__/
 *.pkl
 .DS_Store
 .env
+output/
+.runtime_output/
+gbrain_pages/
