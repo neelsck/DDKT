@@ -17,6 +17,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from metrics import (
+    compute_context_precision,
+    compute_context_recall,
+    compute_faithfulness,
+)
+
 try:
     from dotenv import load_dotenv
     load_dotenv(Path(__file__).resolve().parent / ".env")
@@ -332,46 +338,50 @@ def _sync_contracts_to_gbrain(contracts: dict[str, dict]) -> dict:
         return dict(_gbrain_status)
 
 
-def _gbrain_memory_search(question: str, focus: str = "") -> dict:
+def _gbrain_memory_search(question: str, focus: str = "") -> tuple[dict, str]:
     query = question.strip() or focus.strip() or "uploaded contract FSM"
     query = query[:700]
     result = _gbrain_cli(["search", query], timeout=GBRAIN_TIMEOUT_SECONDS)
     output = result.get("output", "")
     if result.get("available") and output.strip() and output.strip() != "No results.":
+        raw_text = output
+        truncated_text = _truncate_text(raw_text)
         return {
             "available": True,
             "query": query,
-            "output": _truncate_text(output),
+            "output": truncated_text,
             "returncode": result.get("returncode"),
-        }
+        }, raw_text
 
     fallback_pages = []
     for page in sorted(GBRAIN_FSM_DIR.glob("*.md")):
         get_result = _gbrain_cli(["get", page.stem], timeout=GBRAIN_TIMEOUT_SECONDS)
         if get_result.get("available") and get_result.get("output"):
             fallback_pages.append(
-                f"## {page.stem}\n{_truncate_text(get_result['output'], max_chars=1800)}"
+                f"## {page.stem}\n{get_result['output']}"
             )
 
     if fallback_pages:
-        output = (
+        raw_text = (
             f"GBrain search for `{query}` returned no direct hits, so this agent loaded "
             "the canonical imported FSM memory pages by slug.\n\n"
             + "\n\n".join(fallback_pages)
         )
+        truncated_text = _truncate_text(raw_text)
         return {
             "available": True,
             "query": query,
-            "output": _truncate_text(output),
+            "output": truncated_text,
             "returncode": result.get("returncode"),
-        }
+        }, raw_text
 
+    raw_text = output if result.get("available") else ""
     return {
         "available": bool(result.get("available")),
         "query": query,
         "output": output,
         "returncode": result.get("returncode"),
-    }
+    }, raw_text
 
 
 def _build_fsm_context(contracts: dict[str, dict]) -> str:
@@ -414,7 +424,7 @@ def _message_text(message) -> str:
 
 
 def _run_specialist_agent(profile: dict, question: str, contracts: dict[str, dict]) -> dict:
-    memory = _gbrain_memory_search(
+    memory, raw_retrieved = _gbrain_memory_search(
         question,
         f"{profile['focus']} {profile['query_terms']}",
     )
@@ -465,6 +475,7 @@ def _run_specialist_agent(profile: dict, question: str, contracts: dict[str, dic
         "available": available,
         "memory": memory,
         "output": output,
+        "raw_retrieved": raw_retrieved,
     }
 
 
@@ -487,13 +498,14 @@ def _run_specialist_agents(question: str, contracts: dict[str, dict]) -> list[di
                     "available": False,
                     "memory": {"available": False, "output": ""},
                     "output": f"Agent failed: {exc}",
+                    "raw_retrieved": "",
                 })
 
     order = {profile["id"]: index for index, profile in enumerate(AGENT_PROFILES)}
     return sorted(agents, key=lambda agent: order.get(agent["id"], 999))
 
 
-def _synthesize_agents(question: str, contracts: dict[str, dict], agents: list[dict]) -> str:
+def _synthesize_agents(question: str, contracts: dict[str, dict], agents: list[dict]) -> dict:
     agent_context = "\n\n".join(
         f"## {agent['name']}\n"
         f"Focus: {agent['focus']}\n"
@@ -532,14 +544,29 @@ def _synthesize_agents(question: str, contracts: dict[str, dict], agents: list[d
                 ),
             }],
         )
-        return _message_text(msg)
+        synthesized_answer_text = _message_text(msg)
     except ImportError:
-        return "Anthropic SDK not available. Install with: pip install anthropic"
+        synthesized_answer_text = "Anthropic SDK not available. Install with: pip install anthropic"
     except Exception as exc:
-        return f"Error synthesizing agents: {exc}"
+        synthesized_answer_text = f"Error synthesizing agents: {exc}"
+
+    return {
+        "answer": synthesized_answer_text,
+        "metrics_input": {
+            "agent_results": agents,
+            "retrieved_per_agent": [
+                {
+                    "agent_id": agent["id"],
+                    "retrieved": agent.get("raw_retrieved", ""),
+                    "agent_output": agent.get("output", ""),
+                }
+                for agent in agents
+            ],
+        },
+    }
 
 
-def _persist_agent_run(question: str, agents: list[dict], answer: str) -> dict:
+def _persist_agent_run(question: str, agents: list[dict], answer: str, metrics: dict = None) -> dict:
     GBRAIN_RUN_DIR.mkdir(parents=True, exist_ok=True)
     run_id = f"{time.strftime('%Y%m%d-%H%M%S')}-{_safe_slug(question)[:48]}"
     path = GBRAIN_RUN_DIR / f"{run_id}.md"
@@ -554,7 +581,7 @@ def _persist_agent_run(question: str, agents: list[dict], answer: str) -> dict:
         for agent in agents
     )
 
-    path.write_text(
+    content = (
         "---\n"
         "type: agent_run\n"
         f"title: Multi-agent FSM synthesis {run_id}\n"
@@ -572,6 +599,26 @@ def _persist_agent_run(question: str, agents: list[dict], answer: str) -> dict:
         "---\n\n"
         f"- {date.today().isoformat()}: Written back after specialist agents shared GBrain memory and synthesized an FSM-validated answer.\n"
     )
+
+    # METRICS NOT PERSISTED TO GBRAIN: _persist_agent_run() is called before
+    # metrics are computed in the streaming path. The metrics section is only
+    # written when a future caller passes a populated metrics dict.
+    if metrics:
+        content += "\n\n## Evaluation Metrics\n\n"
+        content += (
+            f"**Faithfulness:** "
+            f"{metrics.get('faithfulness', {}).get('score', 'n/a')}\n"
+        )
+        content += (
+            f"**Context Recall:** "
+            f"{metrics.get('context_recall', {}).get('score', 'n/a')}\n"
+        )
+        content += (
+            f"**Context Precision:** "
+            f"{metrics.get('context_precision', {}).get('score', 'n/a')}\n"
+        )
+
+    path.write_text(content)
 
     result = _gbrain_cli(["import", str(GBRAIN_RUN_DIR), "--no-embed", "--json"], timeout=60)
     return {
@@ -755,8 +802,9 @@ class Handler(BaseHTTPRequestHandler):
 
             gbrain = _sync_contracts_to_gbrain(contracts)
             agents = _run_specialist_agents(question, contracts)
-            answer = _synthesize_agents(question, contracts, agents)
-            memory_write = _persist_agent_run(question, agents, answer)
+            synthesis_result = _synthesize_agents(question, contracts, agents)
+            answer = synthesis_result["answer"]
+            memory_write = _persist_agent_run(question, agents, answer, metrics=None)
 
             self._send_json({
                 "question": question,
@@ -820,9 +868,13 @@ class Handler(BaseHTTPRequestHandler):
                             "available": False,
                             "memory": {"available": False, "output": ""},
                             "output": f"Agent failed: {exc}",
+                            "raw_retrieved": "",
                         }
                     agents.append(agent)
-                    emit("agent_done", agent)
+                    emit(
+                        "agent_done",
+                        {k: v for k, v in agent.items() if k != "raw_retrieved"},
+                    )
 
             order = {profile["id"]: index for index, profile in enumerate(AGENT_PROFILES)}
             agents = sorted(agents, key=lambda agent: order.get(agent["id"], 999))
@@ -831,23 +883,88 @@ class Handler(BaseHTTPRequestHandler):
                 "stage": "validation",
                 "message": "Checking that the recommended move can actually happen in the contract map.",
             })
-            answer = _synthesize_agents(question, contracts, agents)
+            synthesis_result = _synthesize_agents(question, contracts, agents)
+            answer = synthesis_result["answer"]
             emit("answer", {"answer": answer})
+
+            primary_cid = list(_contracts.keys())[-1] if _contracts else None
+            fsm_dict_snapshot = dict(_contracts[primary_cid]) if primary_cid else None
 
             emit("status", {
                 "stage": "writeback",
                 "message": "Saving this answer to shared memory.",
             })
-            memory_write = _persist_agent_run(question, agents, answer)
+            memory_write = _persist_agent_run(question, agents, answer, metrics=None)
             emit("memory_write", memory_write)
 
             emit("done", {
                 "question": question,
                 "answer": answer,
                 "gbrain": gbrain,
-                "agents": agents,
+                "agents": [
+                    {k: v for k, v in agent.items() if k != "raw_retrieved"}
+                    for agent in agents
+                ],
                 "memory_write": memory_write,
             })
+
+            # MULTI-CONTRACT QUERIES: Metrics use the most recently uploaded
+            # contract as ground truth. If a question spans several contracts,
+            # scores may be computed against the wrong FSM until contract
+            # selection is added.
+            #
+            # GBRAIN ABSENCE: If gbrain is unavailable, raw retrieved context is
+            # empty. Context recall and precision default to 1.0 with zero totals
+            # because there is no retrieval result to evaluate.
+            #
+            # METRICS NOT PERSISTED TO GBRAIN: _persist_agent_run() runs before
+            # metrics complete. Persisting metrics requires a later ordering
+            # refactor that waits for this background computation.
+            def _emit_metrics():
+                try:
+                    if not primary_cid or fsm_dict_snapshot is None:
+                        return
+
+                    fsm_context_str = _build_fsm_context(
+                        {primary_cid: fsm_dict_snapshot}
+                    )
+                    metrics_input = synthesis_result["metrics_input"]
+                    faithfulness_result = compute_faithfulness(
+                        synthesized_answer=synthesis_result["answer"],
+                        fsm_context_str=fsm_context_str,
+                        fsm_dict=fsm_dict_snapshot,
+                    )
+                    all_retrieved = "\n\n".join(
+                        agent.get("raw_retrieved", "")
+                        for agent in metrics_input["agent_results"]
+                    )
+                    recall_result = compute_context_recall(
+                        question=question,
+                        retrieved_chunks=all_retrieved,
+                        fsm_dict=fsm_dict_snapshot,
+                        fsm_context_str=fsm_context_str,
+                    )
+                    precision_result = compute_context_precision(
+                        question=question,
+                        retrieved_chunks_per_agent=metrics_input["retrieved_per_agent"],
+                    )
+                    metrics_payload = {
+                        "faithfulness": faithfulness_result,
+                        "context_recall": recall_result,
+                        "context_precision": precision_result,
+                    }
+                    try:
+                        emit("metrics", metrics_payload)
+                    except BrokenPipeError:
+                        pass
+                except Exception as exc:
+                    try:
+                        emit("metrics_error", {"error": str(exc)})
+                    except BrokenPipeError:
+                        pass
+
+            metrics_thread = threading.Thread(target=_emit_metrics, daemon=True)
+            metrics_thread.start()
         except BrokenPipeError:
             return
         except Exception as exc:
